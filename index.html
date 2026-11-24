@@ -1,0 +1,287 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Rx Arcade</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;800&family=Figtree:wght@400;600;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: a pharmacy shelf wall. Each disease state is a shelf; each game is a labeled Rx carton on it. Clicking a carton opens the game in a full-screen player. */
+:root {
+  --bg: #eaf1f0;
+  --shelf: #d6e2e0;
+  --surface: #ffffff;
+  --line: #c3d3d1;
+  --ink: #0f2a2e;
+  --muted: #557174;
+  --amber: #c9701c;
+  --teal: #0f7d84;
+  --teal-soft: #d5ecec;
+  --f-display: "Unbounded", "Arial Black", system-ui, sans-serif;
+  --f-body: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0c1a1c; --shelf: #132629; --surface: #172d31; --line: #26444a;
+  --ink: #e3efed; --muted: #8fadab; --amber: #f0a24a; --teal: #4fc3c0; --teal-soft: #173b3e;
+  color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #0c1a1c; --shelf: #132629; --surface: #172d31; --line: #26444a;
+  --ink: #e3efed; --muted: #8fadab; --amber: #f0a24a; --teal: #4fc3c0; --teal-soft: #173b3e;
+  color-scheme: dark; }
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 16px; line-height: 1.5; }
+.wrap { max-width: 1060px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+h1, h2, h3 { margin: 0; text-wrap: balance; line-height: 1.1; }
+p { margin: 0; }
+a { color: inherit; }
+:focus-visible { outline: 2px solid var(--teal); outline-offset: 3px; }
+
+header { padding-block: 40px 28px; display: grid; gap: 12px; }
+.mark { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+h1 { font-family: var(--f-display); font-weight: 800; font-size: clamp(2.2rem, 7vw, 3.8rem); letter-spacing: -.02em; }
+h1 em { font-style: normal; color: var(--amber); }
+.lead { color: var(--muted); max-width: 58ch; font-size: 1.05rem; }
+.meta { font-family: var(--f-mono); font-size: .78rem; color: var(--muted); letter-spacing: .04em; }
+
+.shelf { padding-block: 26px 30px; border-top: 1px solid var(--line); }
+.shelf-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+.shelf-head h2 { font-family: var(--f-display); font-weight: 700; font-size: 1.2rem; letter-spacing: .01em; }
+.count { font-family: var(--f-mono); font-size: .75rem; color: var(--muted); text-transform: uppercase; letter-spacing: .1em; }
+.row { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 14px; padding-bottom: 14px; border-bottom: 8px solid var(--shelf); }
+
+.carton {
+  display: grid; grid-template-rows: auto 1fr auto; text-decoration: none; color: inherit;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px; overflow: hidden;
+  transition: transform .15s, border-color .15s, box-shadow .15s;
+}
+.carton:hover { transform: translateY(-3px); border-color: var(--teal); box-shadow: 0 10px 24px -14px rgba(15, 42, 46, .5); }
+.art { aspect-ratio: 16 / 7; max-width: 100%; display: block; width: 100%; }
+.label { padding: 14px 16px 12px; display: grid; gap: 6px; align-content: start; }
+.label .rx { font-family: var(--f-mono); font-size: .72rem; color: var(--amber); letter-spacing: .08em; }
+.label h3 { font-family: var(--f-display); font-weight: 700; font-size: 1.15rem; }
+.label p { color: var(--muted); font-size: .94rem; }
+.sig { display: flex; justify-content: space-between; gap: 10px; padding: 9px 16px; border-top: 1px dashed var(--line); font-family: var(--f-mono); font-size: .72rem; color: var(--muted); }
+.sig b { color: var(--teal); font-weight: 500; }
+
+.empty {
+  border: 2px dashed var(--line); border-radius: 12px; padding: 18px; display: grid; gap: 6px; align-content: center; min-height: 140px;
+  color: var(--muted);
+}
+.row.waiting { grid-template-columns: repeat(auto-fill, minmax(min(100%, 180px), 1fr)); }
+.row.waiting .empty { min-height: 96px; }
+.empty b { color: var(--ink); font-family: var(--f-display); font-weight: 500; font-size: .95rem; }
+.empty span { font-size: .9rem; }
+
+footer { padding-block: 26px 48px; color: var(--muted); font-size: .85rem; max-width: 70ch; }
+
+/* Player */
+.player { position: fixed; inset: 0; z-index: 20; background: var(--bg); display: grid; grid-template-rows: auto 1fr; }
+.player[hidden] { display: none; }
+.bar {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding-top: calc(8px + env(safe-area-inset-top, 0px)); padding-bottom: 8px;
+  padding-left: max(12px, env(safe-area-inset-left, 0px)); padding-right: max(12px, env(safe-area-inset-right, 0px));
+  background: var(--surface); border-bottom: 1px solid var(--line);
+}
+.back { font: 600 .92rem var(--f-body); color: var(--ink); background: var(--teal-soft); border: 0; border-radius: 999px; padding: 7px 14px; cursor: pointer; }
+.back:hover { background: var(--line); }
+.bar h2 { font-family: var(--f-display); font-weight: 700; font-size: 1rem; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bar .tab { font-size: .85rem; color: var(--muted); }
+.frame { width: 100%; height: 100%; border: 0; display: block; background: var(--bg); }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div id="home">
+  <header class="wrap">
+    <h1>Rx <em>Arcade</em></h1>
+    <p class="lead">Pharmacy games that each drill one idea, organized by disease state. Pick one off the shelf and play.</p>
+  </header>
+  <main class="wrap" id="shelves"></main>
+  <footer class="wrap">For educational purposes only. Not clinical advice.</footer>
+</div>
+
+<div class="player" id="player" hidden>
+  <div class="bar">
+    <button class="back" id="back" type="button">← All games</button>
+    <h2 id="p-title"></h2>
+    <a class="tab" id="p-tab" href="#" target="_blank" rel="noopener">Open in new tab</a>
+  </div>
+  <iframe class="frame" id="frame" title="Game"></iframe>
+</div>
+
+<script>
+const GAMES = {
+  'capsule-hop': {
+    title: 'Capsule Hop', file: 'games/capsule-hop.html', shelf: 'pharm',
+    blurb: 'Tap-to-fly arcade. Pick a capsule whose power matches how the drug works, then fly through drug-themed obstacles.',
+    sig: 'Arcade', meta: '6 capsules', art: 'capsule'
+  },
+  'colony-siege': {
+    title: 'Colony Siege', file: 'games/colony-siege.html', shelf: 'id',
+    blurb: 'Prescribe an antibiotic army and attack a bacterial colony. Drugs have class powers and adverse-effect faults; bacteria fight back with real resistance.',
+    sig: 'Strategy', meta: '6 infections', art: 'siege'
+  },
+  'airway-dash': {
+    title: 'Airway Dash', file: 'games/airway-dash.html', shelf: ['asthma', 'copd'],
+    blurb: 'Endless runner. Dodge triggers and steer into the right inhaler for each clinical cue. Two wrong picks and your patient has an exacerbation.',
+    sig: 'Runner', meta: '14 cues', art: 'runner'
+  },
+  'refill-rocket': {
+    title: 'Refill Rocket', file: 'games/refill-rocket.html', shelf: ['hf', 'htn', 'afib'],
+    blurb: 'Jetpack through the pharmacy and grab the right meds for each cardiology patient. Harmful drugs and interactions cost a safety heart.',
+    sig: 'Jetpack', meta: '8 patients', art: 'rocket'
+  },
+  'inhaler-pop': {
+    title: 'Inhaler Pop', file: 'games/inhaler-pop.html', shelf: ['asthma', 'copd'],
+    blurb: 'Match-3 with brand-name inhalers. Fill orders written as generics, classes and GOLD groups, and learn what is inside each device.',
+    sig: 'Match-3', meta: '17 inhalers', art: 'pop'
+  },
+  'pressure-bowl': {
+    title: 'Pressure Bowl', file: 'games/pressure-bowl.html', shelf: 'pah',
+    blurb: 'Football against PAH. Read WHO class and cardiac index, draft meds, supportive care and prevention, then survive adverse-event injuries and progression with your bench.',
+    sig: 'Football', meta: '4 patients', art: 'football'
+  },
+  'nephron-shift': {
+    title: 'Nephron Shift', file: 'games/nephron-shift.html', shelf: 'renal',
+    blurb: 'Call whether a drug interaction or comorbidity raises or lowers renal excretion, then watch the nephron prove it.',
+    sig: 'Case game', meta: '17 cases', art: 'nephron'
+  },
+  'renal-function-lab': {
+    title: 'Renal Function Lab', file: 'games/renal-function-lab.html', shelf: 'renal',
+    blurb: 'Hands-on simulators for GFR pressures, urine pH ion trapping, transporters, and nephron loss, plus a quiz.',
+    sig: 'Lab + quiz', meta: '11 questions', art: 'lab'
+  },
+  'pain-puzzles': {
+    title: 'Pain Puzzles', file: 'games/pain-puzzles.html', shelf: 'pain',
+    blurb: 'Word searches, crosswords and a term-guess game across eight pain topics, from nociception and NSAIDs to opioids, neuropathic pain and muscle relaxants.',
+    sig: 'Word puzzles', meta: '191 terms', art: 'puzzle'
+  },
+  'brand-match': {
+    title: 'Brand Match', file: 'games/brand-match.html', shelf: 'pharm',
+    blurb: 'Memory card game: flip cards to pair brand names with their generics across every shelf, from antibiotics and inhalers to PAH therapy.',
+    sig: 'Card game', meta: '152 pairs', art: 'cards'
+  }
+};
+const SHELVES = [
+  { id: 'pharm', name: 'Pharmacology warm-ups' },
+  { id: 'id', name: 'Infectious disease' },
+  { id: 'renal', name: 'Nephrology' },
+  { id: 'pain', name: 'Pain management' },
+  { id: 'hf', name: 'Heart failure' },
+  { id: 'htn', name: 'Hypertension' },
+  { id: 'afib', name: 'Atrial fibrillation' },
+  { id: 'asthma', name: 'Asthma' },
+  { id: 'copd', name: 'COPD' },
+  { id: 'pah', name: 'Pulmonary arterial hypertension' }
+];
+
+const ART = {
+  cards: `<svg class="art" viewBox="0 0 320 140" aria-hidden="true">
+    <rect width="320" height="140" fill="var(--teal-soft)"/>
+    <g transform="translate(106 76) rotate(-14)"><rect x="-30" y="-42" width="60" height="84" rx="8" fill="#4f6d8a" stroke="var(--surface)" stroke-width="4"/><text y="8" text-anchor="middle" font-family="Georgia, serif" font-size="24" fill="#fff">℞</text></g>
+    <g transform="translate(214 76) rotate(14)"><rect x="-30" y="-42" width="60" height="84" rx="8" fill="var(--surface)" stroke="var(--line)" stroke-width="2"/><text x="6" y="4" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="9" fill="var(--ink)">apixaban</text></g>
+    <g transform="translate(160 70)"><rect x="-30" y="-42" width="60" height="84" rx="8" fill="#9a4f5a" stroke="var(--surface)" stroke-width="4"/><text y="5" text-anchor="middle" font-family="Georgia, serif" font-weight="700" font-size="13" fill="#fff">Eliquis</text></g></svg>`,
+  puzzle: `<svg class="art" viewBox="0 0 320 140" aria-hidden="true">
+    <rect width="320" height="140" fill="var(--teal-soft)"/>
+    <g font-family="IBM Plex Mono, monospace" font-size="15" font-weight="500" fill="var(--ink)" text-anchor="middle">
+      ${'NSAIDXQKTZMORPHINECOXRBTLWVKOPIOIDSW'.split('').map((ch,i)=>`<text x="${74 + (i % 9) * 22}" y="${36 + Math.floor(i / 9) * 26}">${ch}</text>`).join('')}
+    </g>
+    <rect x="63" y="21" width="110" height="21" rx="10.5" fill="var(--amber)" opacity=".35"/>
+    <rect x="85" y="47" width="176" height="21" rx="10.5" fill="var(--teal)" opacity=".3"/>
+    <rect x="85" y="99" width="154" height="21" rx="10.5" fill="var(--amber)" opacity=".35"/></svg>`,
+  capsule: `<svg class="art" viewBox="0 0 320 140" aria-hidden="true">
+    <rect width="320" height="140" fill="var(--teal-soft)"/>
+    <rect x="190" y="0" width="42" height="44" rx="6" fill="var(--teal)"/><rect x="190" y="98" width="42" height="42" rx="6" fill="var(--teal)"/>
+    <rect x="270" y="0" width="42" height="64" rx="6" fill="var(--teal)" opacity=".55"/><rect x="270" y="116" width="42" height="24" rx="6" fill="var(--teal)" opacity=".55"/>
+    <g transform="translate(110 72) rotate(-14)"><rect x="-34" y="-13" width="68" height="26" rx="13" fill="var(--amber)"/><rect x="0" y="-13" width="34" height="26" rx="0" fill="var(--surface)"/><rect x="-34" y="-13" width="68" height="26" rx="13" fill="none" stroke="var(--ink)" stroke-width="2"/></g>
+    <circle cx="58" cy="84" r="3" fill="var(--muted)"/><circle cx="42" cy="92" r="2.4" fill="var(--muted)" opacity=".6"/><circle cx="28" cy="100" r="1.8" fill="var(--muted)" opacity=".4"/></svg>`,
+  siege: `<svg class="art" viewBox="0 0 320 140" aria-hidden="true">
+    <rect width="320" height="140" fill="var(--teal-soft)"/>
+    <circle cx="200" cy="70" r="56" fill="none" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="5 5"/>
+    <g fill="#9b6bff" stroke="var(--ink)" stroke-width="2"><circle cx="200" cy="70" r="12"/><circle cx="214" cy="60" r="10"/><circle cx="186" cy="60" r="10"/><circle cx="214" cy="80" r="10"/><circle cx="186" cy="80" r="10"/></g>
+    <g fill="#ff6f9a" stroke="var(--ink)" stroke-width="2"><rect x="228" y="28" width="24" height="11" rx="5.5"/><rect x="152" y="104" width="24" height="11" rx="5.5"/><rect x="236" y="98" width="24" height="11" rx="5.5" transform="rotate(30 248 103)"/></g>
+    <g transform="translate(70 52) rotate(18)"><rect x="-17" y="-7" width="34" height="14" rx="7" fill="var(--surface)" stroke="var(--ink)" stroke-width="2"/><rect x="0" y="-6" width="16" height="12" rx="0" fill="var(--amber)"/></g>
+    <g transform="translate(52 96) rotate(-10)"><rect x="-17" y="-7" width="34" height="14" rx="7" fill="var(--surface)" stroke="var(--ink)" stroke-width="2"/><rect x="0" y="-6" width="16" height="12" fill="var(--teal)"/></g>
+    <line x1="90" y1="58" x2="150" y2="66" stroke="var(--amber)" stroke-width="2" stroke-dasharray="4 4"/></svg>`,
+  runner: `<svg class="art" viewBox="0 0 320 140" aria-hidden="true">
+    <rect width="320" height="140" fill="var(--teal-soft)"/>
+    <path d="M150 18 L170 18 L250 140 L70 140 Z" fill="var(--surface)" stroke="var(--line)" stroke-width="2"/>
+    <line x1="157" y1="22" x2="128" y2="140" stroke="var(--line)" stroke-width="2" stroke-dasharray="8 8"/><line x1="163" y1="22" x2="192" y2="140" stroke="var(--line)" stroke-width="2" stroke-dasharray="8 8"/>
+    <g transform="translate(118 58)"><rect x="-6" y="-12" width="12" height="20" rx="4" fill="#3b82f6" stroke="var(--ink)" stroke-width="2"/><rect x="-6" y="5" width="16" height="7" rx="3" fill="#3b82f6" stroke="var(--ink)" stroke-width="2"/></g>
+    <g transform="translate(160 52)"><circle r="10" fill="#f97316" stroke="var(--ink)" stroke-width="2"/><circle r="4" fill="var(--surface)"/></g>
+    <g transform="translate(202 58)"><rect x="-6" y="-14" width="12" height="24" rx="4" fill="var(--surface)" stroke="var(--ink)" stroke-width="2"/><rect x="-6" y="-14" width="12" height="8" rx="3" fill="#14b8a6" stroke="var(--ink)" stroke-width="2"/></g>
+    <g transform="translate(160 112)"><circle cy="-26" r="7" fill="var(--amber)"/><rect x="-9" y="-18" width="18" height="20" rx="5" fill="var(--teal)"/><line x1="-4" y1="2" x2="-6" y2="16" stroke="var(--ink)" stroke-width="4" stroke-linecap="round"/><line x1="4" y1="2" x2="7" y2="12" stroke="var(--ink)" stroke-width="4" stroke-linecap="round"/></g></svg>`,
+  rocket: `<svg class="art" viewBox="0 0 320 140" aria-hidden="true">
+    <rect width="320" height="140" fill="var(--teal-soft)"/>
+    <path d="M0 40 H60 L68 30 L74 52 L80 18 L88 46 L94 40 H320" fill="none" stroke="#e5484d" stroke-width="2" opacity=".5"/>
+    <g transform="translate(220 50)"><rect x="-12" y="-10" width="24" height="28" rx="5" fill="var(--amber)"/><rect x="-14" y="-17" width="28" height="8" rx="3" fill="var(--surface)" stroke="var(--ink)" stroke-width="2"/></g>
+    <g transform="translate(262 98)"><rect x="-12" y="-10" width="24" height="28" rx="5" fill="var(--amber)"/><rect x="-14" y="-17" width="28" height="8" rx="3" fill="var(--surface)" stroke="var(--ink)" stroke-width="2"/></g>
+    <g transform="translate(110 76) rotate(-8)"><rect x="-26" y="-14" width="12" height="28" rx="4" fill="var(--muted)"/><rect x="-14" y="-12" width="24" height="30" rx="6" fill="var(--surface)" stroke="var(--ink)" stroke-width="2"/><circle cy="-22" r="10" fill="#8d5a3b"/>
+      <path d="M-22 16 L-30 40 L-14 40 Z" fill="#f97316"/><path d="M-22 16 L-26 30 L-18 30 Z" fill="#facc15"/></g></svg>`,
+  pop: `<svg class="art" viewBox="0 0 320 140" aria-hidden="true">
+    <rect width="320" height="140" fill="var(--teal-soft)"/>
+    <g stroke="var(--ink)" stroke-width="2">
+      <rect x="86" y="14" width="34" height="34" rx="9" fill="#ff5d8f"/><rect x="126" y="14" width="34" height="34" rx="9" fill="#3d8bff"/><rect x="166" y="14" width="34" height="34" rx="9" fill="#3d8bff"/><rect x="206" y="14" width="34" height="34" rx="9" fill="#1fb860"/>
+      <rect x="86" y="54" width="34" height="34" rx="9" fill="#f59e0b"/><rect x="126" y="54" width="34" height="34" rx="9" fill="#f59e0b"/><rect x="166" y="54" width="34" height="34" rx="9" fill="#f59e0b"/><rect x="206" y="54" width="34" height="34" rx="9" fill="#9b5cff"/>
+      <rect x="86" y="94" width="34" height="34" rx="9" fill="#1fb860"/><rect x="126" y="94" width="34" height="34" rx="9" fill="#ff5d8f"/><rect x="166" y="94" width="34" height="34" rx="9" fill="#3d8bff"/><rect x="206" y="94" width="34" height="34" rx="9" fill="#0fb5b5"/></g>
+    <rect x="80" y="50" width="126" height="42" rx="12" fill="none" stroke="var(--amber)" stroke-width="3" stroke-dasharray="6 5"/></svg>`,
+  football: `<svg class="art" viewBox="0 0 320 140" aria-hidden="true">
+    <rect width="320" height="140" fill="#1e6a34"/>
+    <rect x="0" y="0" width="34" height="140" fill="#1d4fa8"/><rect x="286" y="0" width="34" height="140" fill="#9e2a2f"/>
+    <g stroke="rgba(255,255,255,.6)" stroke-width="2"><line x1="70" y1="10" x2="70" y2="130"/><line x1="110" y1="10" x2="110" y2="130"/><line x1="150" y1="10" x2="150" y2="130"/><line x1="190" y1="10" x2="190" y2="130"/><line x1="230" y1="10" x2="230" y2="130"/><line x1="250" y1="10" x2="250" y2="130"/></g>
+    <g stroke="#0008" stroke-width="1.5"><circle cx="128" cy="70" r="10" fill="#3d8bff"/><circle cx="108" cy="88" r="10" fill="#3d8bff"/><circle cx="140" cy="38" r="10" fill="#3d8bff"/>
+      <circle cx="166" cy="56" r="9" fill="#c23a40"/><circle cx="168" cy="84" r="9" fill="#c23a40"/><circle cx="200" cy="70" r="9" fill="#c23a40"/></g>
+    <ellipse cx="146" cy="66" rx="7" ry="4.5" fill="#7a3b16"/>
+    <path d="M128 70 Q 190 20 250 52" fill="none" stroke="#ffd400" stroke-width="2" stroke-dasharray="5 5"/></svg>`,
+  nephron: `<svg class="art" viewBox="0 0 320 140" aria-hidden="true">
+    <rect width="320" height="140" fill="var(--teal-soft)"/>
+    <circle cx="56" cy="46" r="20" fill="none" stroke="var(--amber)" stroke-width="5"/>
+    <path d="M76 46 C100 30 112 62 136 46 S170 30 176 50 L176 112 C176 128 204 128 204 112 L204 56 C214 40 232 64 250 46 L280 46 L280 128" fill="none" stroke="var(--teal)" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="120" cy="46" r="4" fill="var(--ink)"/><circle cx="176" cy="88" r="4" fill="var(--ink)"/><circle cx="242" cy="50" r="4" fill="var(--ink)"/><circle cx="280" cy="110" r="4" fill="var(--amber)"/></svg>`,
+  lab: `<svg class="art" viewBox="0 0 320 140" aria-hidden="true">
+    <rect width="320" height="140" fill="var(--teal-soft)"/>
+    <g fill="none" stroke="var(--ink)" stroke-width="2">
+      <line x1="40" y1="40" x2="280" y2="40" stroke="var(--line)"/><line x1="40" y1="76" x2="280" y2="76" stroke="var(--line)"/><line x1="40" y1="112" x2="280" y2="112" stroke="var(--line)"/></g>
+    <rect x="40" y="36" width="170" height="8" rx="4" fill="var(--teal)"/><circle cx="210" cy="40" r="9" fill="var(--surface)" stroke="var(--teal)" stroke-width="3"/>
+    <rect x="40" y="72" width="96" height="8" rx="4" fill="var(--amber)"/><circle cx="136" cy="76" r="9" fill="var(--surface)" stroke="var(--amber)" stroke-width="3"/>
+    <rect x="40" y="108" width="226" height="8" rx="4" fill="var(--teal)" opacity=".6"/><circle cx="266" cy="112" r="9" fill="var(--surface)" stroke="var(--teal)" stroke-width="3"/></svg>`
+};
+
+const $ = s => document.querySelector(s);
+let rxNo = 1001;
+const filled = SHELVES.filter(sh => Object.values(GAMES).some(g => [].concat(g.shelf).includes(sh.id)));
+const waiting = SHELVES.filter(sh => !filled.includes(sh));
+$('#shelves').innerHTML = filled.map(sh => {
+  const games = Object.entries(GAMES).filter(([, g]) => [].concat(g.shelf).includes(sh.id));
+  const cards = games.map(([id, g]) => `
+    <a class="carton" href="#${id}" data-id="${id}">
+      ${ART[g.art]}
+      <div class="label"><span class="rx">Rx #${rxNo++} · ${g.sig}</span><h3>${g.title}</h3><p>${g.blurb}</p></div>
+      <div class="sig"><span>Qty: <b>${g.meta}</b></span><span>Refills: <b>unlimited</b></span></div>
+    </a>`).join('');
+  return `<section class="shelf"><div class="shelf-head"><h2>${sh.name}</h2><span class="count">${games.length + (games.length === 1 ? ' game' : ' games')}</span></div><div class="row">${cards}</div></section>`;
+}).join('') + (waiting.length ? `<section class="shelf"><div class="shelf-head"><h2>Shelves being stocked</h2><span class="count">Coming soon</span></div><div class="row waiting">${
+  waiting.map(sh => `<div class="empty"><b>${sh.name}</b><span>No games yet</span></div>`).join('')}</div></section>` : '');
+
+function route() {
+  const id = location.hash.slice(1);
+  const g = GAMES[id];
+  if (g) {
+    $('#p-title').textContent = g.title;
+    $('#p-tab').href = g.file;
+    if ($('#frame').getAttribute('src') !== g.file) $('#frame').src = g.file;
+    $('#player').hidden = false; $('#home').hidden = true;
+    document.title = g.title + ' · Rx Arcade';
+    $('#frame').focus();
+  } else {
+    $('#player').hidden = true; $('#home').hidden = false;
+    $('#frame').removeAttribute('src');
+    document.title = 'Rx Arcade';
+  }
+}
+$('#back').addEventListener('click', () => { location.hash = ''; });
+window.addEventListener('hashchange', route);
+route();
+</script>
+
+</body></html>
