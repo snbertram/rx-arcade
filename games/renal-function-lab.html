@@ -1,0 +1,630 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Renal Function Lab</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Source+Sans+3:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one study column with a sticky section bar; each section pairs a live instrument with its takeaway */
+:root{
+  --bg:#f4f6f8; --surface:#ffffff; --surface-2:#eaeef2; --line:#d5dce3;
+  --fg:#18212b; --muted:#5a6878;
+  --accent:#a3263b; --accent-soft:#f6e3e6;   /* renal / blood */
+  --plasma:#2f5d9e; --plasma-soft:#e2eaf6;    /* filtrate, plasma */
+  --urine:#b27a0c; --urine-soft:#f8eed6;      /* urine, ionized */
+  --good:#22774a; --good-soft:#e0f1e7; --bad:#b3261e; --bad-soft:#f8e1df;
+  --f-display:"Bricolage Grotesque", "Avenir Next", system-ui, sans-serif;
+  --f-body:"Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  --f-mono:"JetBrains Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#11161c; --surface:#18202a; --surface-2:#212b36; --line:#2f3b48;
+  --fg:#e6ebf0; --muted:#9aa8b6;
+  --accent:#e7697d; --accent-soft:#3a1f26; --plasma:#7fa8e6; --plasma-soft:#1d2a3d;
+  --urine:#e3b04b; --urine-soft:#352a14; --good:#5cc38a; --good-soft:#163024; --bad:#f07f76; --bad-soft:#3a1d1b;
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#11161c; --surface:#18202a; --surface-2:#212b36; --line:#2f3b48;
+  --fg:#e6ebf0; --muted:#9aa8b6;
+  --accent:#e7697d; --accent-soft:#3a1f26; --plasma:#7fa8e6; --plasma-soft:#1d2a3d;
+  --urine:#e3b04b; --urine-soft:#352a14; --good:#5cc38a; --good-soft:#163024; --bad:#f07f76; --bad-soft:#3a1d1b;
+  color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:16px;line-height:1.55}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
+.wrap{max-width:1040px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;line-height:1.15;margin:0}
+h1{font-size:clamp(1.9rem,4.5vw,2.8rem);font-weight:700;letter-spacing:-.02em}
+h2{font-size:1.6rem;font-weight:700;letter-spacing:-.01em}
+h3{font-size:1.1rem;font-weight:700}
+p{margin:0}
+.eyebrow{font-family:var(--f-mono);font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--accent)}
+.muted{color:var(--muted)}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+
+header.hero{padding-block:36px 24px;display:grid;gap:14px}
+header.hero p{max-width:62ch;color:var(--muted);font-size:1.05rem}
+.course{font-family:var(--f-mono);font-size:.8rem;color:var(--muted)}
+
+nav.sections{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--surface);border-bottom:1px solid var(--line);border-top:1px solid var(--line)}
+nav.sections .wrap{display:flex;gap:6px;overflow-x:auto;padding-block:8px;scrollbar-width:none}
+nav.sections a{flex:none;font-size:.88rem;font-weight:600;color:var(--muted);text-decoration:none;padding:6px 12px;border-radius:999px}
+nav.sections a:hover,nav.sections a:focus-visible{color:var(--fg);background:var(--surface-2);outline:none}
+
+section{padding-block:44px;border-bottom:1px solid var(--line);scroll-margin-top:56px}
+.sec-head{display:grid;gap:8px;margin-bottom:22px;max-width:70ch}
+.lo{font-family:var(--f-mono);font-size:.75rem;color:var(--muted)}
+
+.grid2{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:20px;align-items:start}
+@media (max-width:760px){.grid2{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px;min-width:0}
+.panel h3{margin-bottom:8px}
+.panel ul{margin:8px 0 0;padding-left:1.1em;display:grid;gap:4px}
+
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible,a:focus-visible,path:focus-visible,circle:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:5px 12px;font-size:.88rem;font-weight:600}
+.chip:hover{border-color:var(--muted)}
+.chip[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+
+/* Nephron */
+.nephron-svg{width:100%;height:auto;display:block}
+.seg{fill:none;stroke-linecap:round;stroke-linejoin:round;cursor:pointer;transition:stroke .15s, stroke-width .15s}
+.seg-hit{fill:none;stroke:transparent;stroke-width:30;cursor:pointer}
+.svg-label{font-family:var(--f-mono);font-size:11px;fill:var(--muted);pointer-events:none}
+.svg-label.on{fill:var(--fg);font-weight:600}
+.stat-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.stat{background:var(--surface-2);border-radius:8px;padding:8px 10px;min-width:0}
+.stat b{display:block;font-family:var(--f-mono);font-size:1.05rem}
+.stat span{font-size:.78rem;color:var(--muted)}
+.tag{display:inline-block;font-family:var(--f-mono);font-size:.72rem;padding:2px 7px;border-radius:4px;background:var(--plasma-soft);color:var(--plasma);margin:2px 4px 2px 0}
+
+/* GFR */
+.slider{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 12px;margin-bottom:14px}
+.slider label{font-weight:600;font-size:.92rem}
+.slider output{font-family:var(--f-mono);font-size:.92rem}
+.slider input{grid-column:1/-1;width:100%;accent-color:var(--accent)}
+.slider small{grid-column:1/-1;color:var(--muted);font-size:.8rem}
+.readout{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:6px}
+.big{font-family:var(--f-display);font-size:2.2rem;font-weight:700;line-height:1}
+.unit{font-family:var(--f-mono);font-size:.8rem;color:var(--muted)}
+.bar{height:10px;border-radius:5px;background:var(--surface-2);overflow:hidden;margin-top:8px}
+.bar i{display:block;height:100%;background:var(--accent);transition:width .25s}
+.callout{margin-top:14px;padding:12px 14px;border-radius:8px;background:var(--accent-soft);font-size:.95rem}
+.callout b{color:var(--accent)}
+.equation{font-family:var(--f-mono);font-size:.9rem;background:var(--surface-2);padding:10px 12px;border-radius:8px;overflow-x:auto;white-space:nowrap}
+
+/* pH */
+.ion-vis{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:12px}
+.tube{border:1px solid var(--line);border-radius:10px;padding:12px;min-width:0}
+.tube h4{margin:0 0 6px;font-family:var(--f-mono);font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.split{display:flex;height:16px;border-radius:4px;overflow:hidden;margin:6px 0}
+.split .ni{background:var(--plasma)} .split .io{background:var(--urine)}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:.8rem;color:var(--muted)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+.verdict{margin-top:12px;padding:12px 14px;border-radius:8px;font-size:.95rem}
+.verdict.up{background:var(--good-soft)} .verdict.down{background:var(--bad-soft)} .verdict.mid{background:var(--surface-2)}
+.blank{font-family:var(--f-mono);background:var(--urine-soft);color:var(--urine);border:1px dashed var(--urine);border-radius:4px;padding:0 6px;font-size:.9em}
+.blank.hidden{color:transparent;user-select:none}
+
+/* Transporters */
+.drugs{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;margin-top:14px}
+.drug{border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:var(--surface);transition:opacity .2s,border-color .2s}
+.drug b{display:block}
+.drug span{font-size:.8rem;color:var(--muted)}
+.drug.dim{opacity:.3}
+.drug.hit{border-color:var(--accent)}
+.ddi{display:grid;gap:10px;margin-top:6px}
+.ddi div{border-left:3px solid var(--accent);padding:4px 0 4px 12px}
+.ddi b{display:block}
+
+/* CKD model */
+.ckd-chart{width:100%;height:auto;display:block}
+.ckd-chart text{font-family:var(--f-mono);font-size:10px;fill:var(--muted)}
+
+/* Q&A */
+details.qa{border:1px solid var(--line);border-radius:10px;background:var(--surface);padding:0}
+details.qa+details.qa{margin-top:10px}
+details.qa summary{cursor:pointer;padding:14px 16px;font-weight:600;display:flex;gap:12px;list-style:none}
+details.qa summary::-webkit-details-marker{display:none}
+details.qa summary .n{font-family:var(--f-mono);color:var(--accent);flex:none}
+details.qa .ans{padding:0 16px 16px 44px;color:var(--fg)}
+details.qa .ans p+p{margin-top:8px}
+details.qa[open] summary{border-bottom:1px dashed var(--line);margin-bottom:12px}
+
+/* Quiz */
+.quiz-top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.score{font-family:var(--f-mono);font-size:.95rem}
+.q{border:1px solid var(--line);border-radius:10px;background:var(--surface);padding:16px}
+.q+.q{margin-top:12px}
+.q p.stem{font-weight:600;margin-bottom:10px}
+.opts{display:grid;gap:6px}
+.opt{text-align:left;border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:9px 12px;display:flex;gap:10px}
+.opt .k{font-family:var(--f-mono);color:var(--muted);flex:none}
+.opt:hover:not(:disabled){border-color:var(--muted)}
+.opt:disabled{cursor:default}
+.opt.right{background:var(--good-soft);border-color:var(--good)}
+.opt.wrong{background:var(--bad-soft);border-color:var(--bad)}
+.explain{margin-top:10px;font-size:.93rem;color:var(--muted)}
+.btn{border:1px solid var(--fg);background:var(--fg);color:var(--bg);border-radius:8px;padding:7px 14px;font-weight:600;font-size:.9rem}
+.btn.ghost{background:transparent;color:var(--fg)}
+footer{padding-block:28px 48px;color:var(--muted);font-size:.85rem}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<header class="wrap hero">
+  <span class="course">Renal physiology · Drug clearance · Transporters</span>
+  <h1>Renal Function Lab</h1>
+  <p>Learn how the kidney handles drugs by changing things: click nephron segments, push glomerular pressures, shift urine pH, and watch nephron loss play out. The application questions and a quiz are at the end.</p>
+</header>
+
+<nav class="sections" aria-label="Sections"><div class="wrap">
+  <a href="#nephron">Nephron map</a>
+  <a href="#gfr">GFR pressures</a>
+  <a href="#ph">Urine pH</a>
+  <a href="#transport">Transporters</a>
+  <a href="#ckd">Nephron loss &amp; RFR</a>
+  <a href="#metab">Metabolism &amp; CKD</a>
+  <a href="#apply">Application Qs</a>
+  <a href="#quiz">Quiz</a>
+</div></nav>
+
+<main>
+<!-- NEPHRON -->
+<section id="nephron"><div class="wrap">
+  <div class="sec-head">
+    <span class="eyebrow">Nephron structure &amp; function</span>
+    <h2>What each segment does</h2>
+    <p class="muted">Click a segment. The three processes are filtration (glomerulus), reabsorption (mostly proximal tubule), and secretion (mostly proximal tubule, plus K⁺ in the distal nephron).</p>
+  </div>
+  <div class="grid2">
+    <div class="panel">
+      <svg class="nephron-svg" viewBox="0 0 420 380" role="group" aria-label="Nephron diagram">
+        <line x1="20" y1="185" x2="400" y2="185" stroke="var(--line)" stroke-dasharray="4 4"/>
+        <text class="svg-label" x="22" y="178">CORTEX</text>
+        <text class="svg-label" x="22" y="200">MEDULLA</text>
+        <g id="g-glom"></g><g id="g-pct"></g><g id="g-loop"></g><g id="g-dct"></g><g id="g-cd"></g>
+      </svg>
+      <div class="chips" id="seg-chips" style="margin-top:8px"></div>
+    </div>
+    <div class="panel" id="seg-info" aria-live="polite"></div>
+  </div>
+</div></section>
+
+<!-- GFR -->
+<section id="gfr"><div class="wrap">
+  <div class="sec-head">
+    <span class="eyebrow">Regulation of GFR</span>
+    <h2>Push the Starling forces</h2>
+    <p class="muted">Net filtration pressure is the glomerular capillary pressure pushing fluid out, minus the plasma oncotic pressure and Bowman's capsule pressure pushing back. Pick a scenario or drag the sliders.</p>
+  </div>
+  <div class="chips" id="gfr-presets" style="margin-bottom:16px"></div>
+  <div class="grid2">
+    <div class="panel">
+      <div class="slider"><label for="pgc">Glomerular capillary hydrostatic (P<sub>GC</sub>)</label><output id="pgc-o" class="mono"></output>
+        <input type="range" id="pgc" min="30" max="80" value="55"><small>Pushes filtrate out. Set by afferent and efferent arteriole tone.</small></div>
+      <div class="slider"><label for="pic">Plasma oncotic (π<sub>GC</sub>)</label><output id="pic-o" class="mono"></output>
+        <input type="range" id="pic" min="15" max="40" value="30"><small>Proteins (albumin) hold water in the capillary.</small></div>
+      <div class="slider"><label for="pbs">Bowman's capsule hydrostatic (P<sub>BS</sub>)</label><output id="pbs-o" class="mono"></output>
+        <input type="range" id="pbs" min="5" max="35" value="15"><small>Back-pressure from filtrate already in the capsule.</small></div>
+      <div class="equation" id="nfp-eq"></div>
+    </div>
+    <div class="panel">
+      <svg viewBox="0 0 320 140" style="width:100%;height:auto" aria-label="Arteriole tone diagram">
+        <text x="10" y="20" font-family="var(--f-mono)" font-size="10" fill="var(--muted)">AFFERENT</text>
+        <text x="236" y="20" font-family="var(--f-mono)" font-size="10" fill="var(--muted)">EFFERENT</text>
+        <rect id="aff" x="10" y="60" width="115" height="20" rx="6" fill="var(--accent)"/>
+        <rect id="eff" x="195" y="60" width="115" height="20" rx="6" fill="var(--accent)"/>
+        <circle cx="160" cy="70" r="40" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="2"/>
+        <text x="160" y="74" text-anchor="middle" font-family="var(--f-mono)" font-size="11" fill="var(--fg)" id="pgc-in">55</text>
+        <text x="160" y="128" text-anchor="middle" font-family="var(--f-mono)" font-size="10" fill="var(--muted)">glomerulus · P_GC mmHg</text>
+      </svg>
+      <div class="readout">
+        <div><div class="unit">NET FILTRATION PRESSURE</div><div class="big" id="nfp">10</div><div class="unit">mmHg</div></div>
+        <div><div class="unit">ESTIMATED GFR</div><div class="big" id="gfr-v">120</div><div class="unit">mL/min (normal ≈ 120)</div></div>
+      </div>
+      <div class="bar"><i id="gfr-bar"></i></div>
+      <div class="callout" id="gfr-note"></div>
+      <p class="muted" style="font-size:.8rem;margin-top:10px">Teaching model: GFR scaled linearly to NFP with surface area and permeability held constant.</p>
+    </div>
+  </div>
+</div></section>
+
+<!-- pH -->
+<section id="ph"><div class="wrap">
+  <div class="sec-head">
+    <span class="eyebrow">Urine pH &amp; drug ionization</span>
+    <h2>Trap the drug in the urine</h2>
+    <p class="muted">Passive reabsorption depends on <span class="blank" id="b1">pKa</span> and <span class="blank" id="b2">urine pH</span>. <button class="chip" id="blank-toggle" style="padding:1px 9px;font-size:.78rem">Hide blanks</button> Only the nonionized form crosses tubular cells back into blood. Ionized drug stays in the urine and is excreted.</p>
+  </div>
+  <div class="chips" id="ph-drugs" style="margin-bottom:16px"></div>
+  <div class="grid2">
+    <div class="panel">
+      <div class="slider"><label for="uph">Urine pH</label><output id="uph-o" class="mono"></output>
+        <input type="range" id="uph" min="4.5" max="8.5" step="0.1" value="6.0"><small>Normal range ≈ 4.5–8. Acidify with ammonium chloride; alkalinize with sodium bicarbonate.</small></div>
+      <div class="slider"><label for="pka">Drug pKa</label><output id="pka-o" class="mono"></output>
+        <input type="range" id="pka" min="2" max="11" step="0.1" value="3.0"></div>
+      <div class="chips" role="group" aria-label="Acid or base">
+        <button class="chip" id="t-acid" aria-pressed="true">Weak acid</button>
+        <button class="chip" id="t-base" aria-pressed="false">Weak base</button>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="ion-vis">
+        <div class="tube"><h4>Plasma · pH 7.4</h4><div class="split"><span class="ni" id="p-ni"></span><span class="io" id="p-io"></span></div><span class="mono" id="p-txt"></span></div>
+        <div class="tube"><h4>Urine · pH <span id="u-ph-lab"></span></h4><div class="split"><span class="ni" id="u-ni"></span><span class="io" id="u-io"></span></div><span class="mono" id="u-txt"></span></div>
+      </div>
+      <div class="legend" style="margin-top:8px"><span><i style="background:var(--plasma)"></i>Nonionized (reabsorbed)</span><span><i style="background:var(--urine)"></i>Ionized (trapped)</span></div>
+      <div class="stat-row"><div class="stat"><b id="ratio">—</b><span>urine : plasma total drug at equilibrium</span></div></div>
+      <div class="verdict" id="ph-verdict"></div>
+    </div>
+  </div>
+</div></section>
+
+<!-- TRANSPORT -->
+<section id="transport"><div class="wrap">
+  <div class="sec-head">
+    <span class="eyebrow">Transporter-mediated secretion</span>
+    <h2>Who carries what in the proximal tubule</h2>
+    <p class="muted">Tubular secretion is active and saturable, so two drugs sharing a carrier compete. That competition is the basis of several classic interactions. Pick a transporter.</p>
+  </div>
+  <div class="chips" id="tx-chips"></div>
+  <div class="drugs" id="drug-grid"></div>
+  <div class="grid2" style="margin-top:20px">
+    <div class="panel"><h3>Transporter families</h3>
+      <ul>
+        <li><b>Solute carriers (SLC):</b> OATs (organic anions), OCTs (organic cations), OATPs, MATEs (efflux into lumen)</li>
+        <li><b>ATP-binding cassette (ABC):</b> P-gp / MDR1, MRP1, MRP2</li>
+        <li>Most drug secretion happens in the proximal tubule</li>
+        <li>Protein binding does not stop secretion. Carriers strip drug off albumin, which is how furosemide (91–99% bound) reaches its site</li>
+      </ul></div>
+    <div class="panel"><h3>Interactions at the carrier</h3>
+      <div class="ddi" id="ddi"></div></div>
+  </div>
+</div></section>
+
+<!-- CKD -->
+<section id="ckd"><div class="wrap">
+  <div class="sec-head">
+    <span class="eyebrow">Intact nephron hypothesis · renal functional reserve</span>
+    <h2>Lose nephrons and watch what you can measure</h2>
+    <p class="muted">In CKD, "kidney function" is the net output of the nephrons that still work. Survivors hyperfiltrate (higher single-nephron GFR), so total GFR holds steady at first. The reserve gets used up before GFR falls.</p>
+  </div>
+  <div class="grid2">
+    <div class="panel">
+      <div class="slider"><label for="neph">Functioning nephrons</label><output id="neph-o" class="mono"></output>
+        <input type="range" id="neph" min="10" max="100" value="100"><small>Drag left to simulate progressive nephron loss.</small></div>
+      <svg class="ckd-chart" viewBox="0 0 340 200" id="ckd-svg" aria-label="GFR and reserve versus nephron mass"></svg>
+      <div class="legend"><span><i style="background:var(--accent)"></i>Resting GFR</span><span><i style="background:var(--plasma)"></i>Max GFR (protein load)</span></div>
+    </div>
+    <div class="panel">
+      <div class="readout">
+        <div><div class="unit">RESTING GFR</div><div class="big" id="ck-gfr">120</div><div class="unit">mL/min</div></div>
+        <div><div class="unit">RENAL FUNCTIONAL RESERVE</div><div class="big" id="ck-rfr">100</div><div class="unit">% remaining</div></div>
+      </div>
+      <div class="stat-row"><div class="stat"><b id="ck-sn">1.0×</b><span>single-nephron GFR vs. normal</span></div></div>
+      <div class="callout" id="ck-note"></div>
+      <p class="muted" style="font-size:.8rem;margin-top:10px">Teaching model: each nephron can at most double its filtration. Real reserve varies by person.</p>
+    </div>
+  </div>
+</div></section>
+
+<!-- METAB -->
+<section id="metab"><div class="wrap">
+  <div class="sec-head">
+    <span class="eyebrow">Renal function &amp; drug clearance</span>
+    <h2>Beyond excretion</h2>
+  </div>
+  <div class="grid2">
+    <div class="panel"><h3>The kidney metabolizes some drugs</h3>
+      <ul>
+        <li><b>Peptidases</b> in the proximal tubule brush border: needed for amino acid reabsorption; degrade peptide hormones and drugs (insulin, enkephalins, imipenem)</li>
+        <li><b>CYP enzymes</b> (Phase I): limited contribution</li>
+        <li><b>UGTs</b> (Phase II): glucuronidation makes drugs more hydrophilic for excretion</li>
+      </ul>
+      <p class="muted" style="margin-top:10px;font-size:.9rem">The kidney clears insulin, so insulin needs often drop as CKD advances.</p></div>
+    <div class="panel"><h3>CKD changes non-renal clearance too</h3>
+      <p style="font-size:.95rem">Drugs with &lt;30% renal excretion are still affected. Uremic toxins circulate and:</p>
+      <ul>
+        <li><b>Inhibit enzymes:</b> hepatic CYP and UGT activity drops, half-life lengthens</li>
+        <li><b>Inhibit transporters:</b> hepatic and intestinal OATPs and P-gp, changing bioavailability and clearance</li>
+        <li><b>Downregulate CYPs:</b> less gene expression and protein (e.g., CYP2C9)</li>
+        <li><b>Metabolites accumulate</b></li>
+      </ul>
+      <p class="muted" style="margin-top:10px;font-size:.9rem">Furosemide: half-life 0.5–2 h with normal kidneys, ~9 h in end-stage kidney disease, and its non-renal clearance is also prolonged.</p></div>
+  </div>
+</div></section>
+
+<!-- APPLICATION -->
+<section id="apply"><div class="wrap">
+  <div class="sec-head">
+    <span class="eyebrow">Apply it</span>
+    <h2>Application questions</h2>
+    <p class="muted">Answer in your head first, then open to check.</p>
+  </div>
+  <div id="qa"></div>
+</div></section>
+
+<!-- QUIZ -->
+<section id="quiz"><div class="wrap">
+  <div class="sec-head">
+    <span class="eyebrow">Check yourself</span>
+    <h2>Practice quiz</h2>
+  </div>
+  <div class="quiz-top"><span class="score" id="score">0 / 0 answered</span><button class="btn ghost" id="reset">Reset quiz</button></div>
+  <div id="quiz-list"></div>
+</div></section>
+</main>
+<footer class="wrap">For educational purposes only. Not clinical advice.</footer>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => s;
+
+/* ---------- NEPHRON ---------- */
+const SEGS = {
+  glom:{name:"Glomerulus & Bowman's capsule", color:"var(--accent)", g:"#g-glom",
+    shape:'<circle cx="70" cy="80" r="30"/>', label:[30,40,"GLOMERULUS"],
+    role:"Filtration",
+    body:`<p>Passive movement of water, ions, and small molecules (<10–20 kDa) across the glomerular capillary membrane into Bowman's capsule.</p>
+    <ul><li><b>Size and charge selective.</b> Most proteins (>60 kDa) are too big and are repelled by the negative charge of the filtration barrier.</li>
+    <li><b>Protein-bound drug is not filtered.</b> Only the free fraction filters.</li>
+    <li>GFR is the rate of <b>plasma</b> (not blood) flow into Bowman's space. Blood cells don't filter, so only the plasma portion of renal blood flow counts.</li></ul>`,
+    stats:[["~180 L","filtered per day"],["~120 mL/min","normal GFR"],["<10–20 kDa","freely filtered"]],
+    drugs:["NSAIDs ↓ GFR (afferent)","ACEi/ARB ↓ GFR (efferent)"]},
+  pct:{name:"Proximal tubule", color:"var(--plasma)", g:"#g-pct",
+    shape:'<path d="M100 80 C120 60 140 100 160 80 S190 60 200 90 L200 120"/>', label:[150,55,"PROXIMAL TUBULE"],
+    role:"Bulk reabsorption · drug secretion",
+    body:`<p>The workhorse. Reabsorbs ~70% of filtered Na⁺ and water, and is where most transporter-mediated drug secretion happens.</p>
+    <ul><li>Secretory carriers: OAT, OCT, OATP, MATE, P-gp, MRPs.</li>
+    <li>Brush-border <b>peptidases</b> break down peptides, insulin, and imipenem.</li>
+    <li>Exchange secretion: e.g., Cl⁻ reabsorption via an exchanger moves HCO₃⁻ into the lumen.</li></ul>`,
+    stats:[["~70%","Na⁺ & water reabsorbed"],["Most","drug secretion"]],
+    drugs:["Penicillins","Metformin","Methotrexate","Digoxin"]},
+  loop:{name:"Loop of Henle", color:"var(--good)", g:"#g-loop",
+    shape:'<path d="M200 120 L200 320 C200 345 240 345 240 320 L240 140"/>', label:[250,300,"LOOP OF HENLE"],
+    role:"Concentrates urine",
+    body:`<p>Builds the medullary osmotic gradient that lets the collecting duct concentrate urine.</p>
+    <ul><li>Water reabsorption is limited beyond the base of the loop (the ascending limb is water-impermeable).</li>
+    <li>Thick ascending limb: Na⁺/K⁺/2Cl⁻ cotransport, the target of loop diuretics like <b>furosemide</b>.</li>
+    <li>Furosemide reaches the lumen by OAT secretion, not filtration, because it's 91–99% protein bound.</li></ul>`,
+    stats:[["Medullary","osmotic gradient"]],
+    drugs:["Furosemide","Bumetanide"]},
+  dct:{name:"Distal convoluted tubule", color:"var(--urine)", g:"#g-dct",
+    shape:'<path d="M240 140 C255 110 275 150 295 120 S320 100 330 110"/>', label:[255,95,"DISTAL TUBULE"],
+    role:"Na⁺/Cl⁻ reabsorption",
+    body:`<p>Fine-tunes Na⁺ and Cl⁻ reabsorption.</p>
+    <ul><li>Na⁺/Cl⁻ cotransporter: the target of <b>thiazides</b>.</li>
+    <li>Aldosterone stimulates K⁺ secretion here and in the collecting duct.</li></ul>`,
+    stats:[["Na⁺/Cl⁻","reabsorption"]],
+    drugs:["Hydrochlorothiazide","Chlorthalidone"]},
+  cd:{name:"Collecting duct", color:"var(--muted)", g:"#g-cd",
+    shape:'<path d="M330 110 L370 110 L370 360"/>', label:[300,375,"COLLECTING DUCT"],
+    role:"Water balance (ADH)",
+    body:`<p>Final say on water balance. ADH inserts water channels so water follows the medullary gradient out of the tubule.</p>
+    <ul><li>Aldosterone drives Na⁺ reabsorption and K⁺ secretion.</li>
+    <li>Urine pH is set by the time fluid leaves here, which decides ion trapping.</li></ul>`,
+    stats:[["ADH","controls water"],["Aldosterone","K⁺ secretion"]],
+    drugs:["Spironolactone","Amiloride"]}
+};
+let curSeg = "glom";
+for (const [k,s] of Object.entries(SEGS)){
+  const g = $(s.g);
+  const isCircle = s.shape.startsWith("<circle");
+  g.innerHTML = s.shape.replace(/\/>$/, ` class="seg" stroke="${s.color}" stroke-width="${isCircle?6:12}" ${isCircle?`style="fill:var(--accent-soft)"`:""}/>`)
+    + s.shape.replace(/\/>$/, ` class="seg-hit" tabindex="0" role="button" aria-label="${s.name}"/>`)
+    + `<text class="svg-label" data-l="${k}" x="${s.label[0]}" y="${s.label[1]}">${s.label[2]}</text>`;
+  g.querySelector(".seg-hit").addEventListener("click", ()=>showSeg(k));
+  g.querySelector(".seg-hit").addEventListener("keydown", e=>{ if(e.key==="Enter"||e.key===" "){e.preventDefault();showSeg(k);} });
+  const b = document.createElement("button"); b.className="chip"; b.textContent=s.name.split(" &")[0].replace("Distal convoluted tubule","Distal tubule"); b.dataset.k=k;
+  b.onclick=()=>showSeg(k); $("#seg-chips").append(b);
+}
+function showSeg(k){
+  curSeg=k; const s=SEGS[k];
+  document.querySelectorAll("#seg-chips .chip").forEach(b=>b.setAttribute("aria-pressed", b.dataset.k===k));
+  for (const [kk,ss] of Object.entries(SEGS)){
+    const seg=$(ss.g).querySelector(".seg"); const on=kk===k;
+    seg.style.opacity = on?1:.35;
+    $(ss.g).querySelector(".svg-label").classList.toggle("on",on);
+  }
+  $("#seg-info").innerHTML = `<span class="eyebrow">${s.role}</span><h3 style="margin:6px 0 10px;font-size:1.35rem">${s.name}</h3>${s.body}
+   <div class="stat-row">${s.stats.map(x=>`<div class="stat"><b>${x[0]}</b><span>${x[1]}</span></div>`).join("")}</div>
+   <div style="margin-top:12px"><span class="unit">DRUG LINKS</span><br>${s.drugs.map(d=>`<span class="tag">${d}</span>`).join("")}</div>`;
+}
+showSeg("glom");
+
+/* ---------- GFR ---------- */
+const PRESETS = [
+  {n:"Normal", pgc:55,pic:30,pbs:15, aff:20,eff:20, note:"<b>Baseline.</b> 55 − 30 − 15 = 10 mmHg net filtration pressure drives a GFR of about 120 mL/min."},
+  {n:"NSAID", pgc:47,pic:30,pbs:15, aff:9,eff:20, note:"<b>Afferent constriction ↓ GFR.</b> NSAIDs block prostaglandins that normally keep the afferent arteriole dilated, so less pressure reaches the glomerulus."},
+  {n:"Angiotensin II", pgc:62,pic:30,pbs:15, aff:20,eff:9, note:"<b>Efferent constriction ↑ GFR.</b> Narrowing the outflow backs pressure up inside the glomerulus. This is how the kidney defends GFR when perfusion drops."},
+  {n:"ACE inhibitor", pgc:50,pic:30,pbs:15, aff:20,eff:28, note:"<b>Efferent dilation ↓ GFR.</b> Less angiotensin II lets the efferent arteriole open, lowering intraglomerular pressure. A small creatinine bump on starting is expected; this is also how ACEi protect the glomerulus."},
+  {n:"NSAID + ACEi", pgc:42,pic:30,pbs:15, aff:9,eff:28, note:"<b>Both ends lose control.</b> Inflow is narrowed and outflow is opened, so P<sub>GC</sub> collapses. Add a diuretic and you have the “triple whammy” for acute kidney injury."},
+  {n:"Renal artery stenosis + ACEi", pgc:46,pic:30,pbs:15, aff:7,eff:28, note:"<b>GFR depends on angiotensin II here.</b> With a narrowed renal artery, efferent constriction is the only thing holding P<sub>GC</sub> up. Remove it with an ACEi and GFR drops sharply."},
+  {n:"Urinary obstruction", pgc:55,pic:30,pbs:24, aff:20,eff:20, note:"<b>↑ P<sub>BS</sub> ↓ GFR.</b> Back-pressure from a blocked ureter or enlarged prostate opposes filtration."},
+  {n:"Low albumin", pgc:55,pic:22,pbs:15, aff:20,eff:20, note:"<b>↓ π<sub>GC</sub> ↑ NFP.</b> Fewer plasma proteins means less force holding fluid in the capillary. (In practice other factors limit how far GFR rises.)"}
+];
+let aff=20, eff=20;
+PRESETS.forEach((p,i)=>{const b=document.createElement("button");b.className="chip";b.textContent=p.n;b.onclick=()=>applyPreset(i);$("#gfr-presets").append(b);});
+function applyPreset(i){const p=PRESETS[i];$("#pgc").value=p.pgc;$("#pic").value=p.pic;$("#pbs").value=p.pbs;aff=p.aff;eff=p.eff;
+  document.querySelectorAll("#gfr-presets .chip").forEach((b,j)=>b.setAttribute("aria-pressed",j===i));updGFR(p.note);}
+function updGFR(note){
+  const pgc=+$("#pgc").value, pic=+$("#pic").value, pbs=+$("#pbs").value;
+  $("#pgc-o").textContent=pgc+" mmHg";$("#pic-o").textContent=pic+" mmHg";$("#pbs-o").textContent=pbs+" mmHg";
+  const nfp=pgc-pic-pbs, gfr=Math.max(0,Math.round(nfp*12));
+  $("#nfp").textContent=nfp; $("#gfr-v").textContent=gfr;
+  $("#nfp-eq").textContent=`NFP = P_GC − π_GC − P_BS = ${pgc} − ${pic} − ${pbs} = ${nfp} mmHg`;
+  $("#gfr-bar").style.width=Math.min(100,gfr/2)+"%";
+  $("#pgc-in").textContent=pgc;
+  const a=$("#aff"), e=$("#eff");
+  a.setAttribute("height",aff); a.setAttribute("y",70-aff/2); e.setAttribute("height",eff); e.setAttribute("y",70-eff/2);
+  if(note!==undefined) $("#gfr-note").innerHTML=note;
+  else { document.querySelectorAll("#gfr-presets .chip").forEach(b=>b.setAttribute("aria-pressed",false));
+    $("#gfr-note").innerHTML = nfp<=0 ? "<b>No net filtration.</b> Opposing forces match or exceed P<sub>GC</sub>." :
+      gfr>130 ? "<b>Hyperfiltration.</b> Sustained high P<sub>GC</sub> injures the glomerulus over time (see chronic hypertension)." :
+      gfr<100 ? "<b>Reduced GFR.</b> Check which force moved: less push (P<sub>GC</sub>) or more pushback (π<sub>GC</sub>, P<sub>BS</sub>)." :
+      "<b>Near normal.</b> Small shifts in any one force change GFR noticeably because NFP is only ~10 mmHg."; }
+}
+["pgc","pic","pbs"].forEach(id=>$("#"+id).addEventListener("input",()=>updGFR()));
+applyPreset(0);
+
+/* ---------- pH ---------- */
+const DRUGS = [
+  {n:"Salicylate (aspirin)", pka:3.0, t:"acid"},
+  {n:"Phenobarbital", pka:7.2, t:"acid"},
+  {n:"Methotrexate", pka:4.8, t:"acid"},
+  {n:"Amphetamine", pka:9.9, t:"base"},
+  {n:"Custom", pka:null, t:null}
+];
+let dtype="acid";
+DRUGS.forEach((d,i)=>{const b=document.createElement("button");b.className="chip";b.textContent=d.n;b.onclick=()=>{
+  if(d.pka!==null){$("#pka").value=d.pka;dtype=d.t;}
+  document.querySelectorAll("#ph-drugs .chip").forEach((x,j)=>x.setAttribute("aria-pressed",j===i));updPH();};$("#ph-drugs").append(b);});
+$("#t-acid").onclick=()=>{dtype="acid";markCustom();updPH();};
+$("#t-base").onclick=()=>{dtype="base";markCustom();updPH();};
+$("#pka").addEventListener("input",()=>{markCustom();updPH();});
+$("#uph").addEventListener("input",updPH);
+function markCustom(){document.querySelectorAll("#ph-drugs .chip").forEach((x,j)=>x.setAttribute("aria-pressed",j===DRUGS.length-1));}
+const ionFrac=(pH,pka,t)=> t==="acid" ? 1/(1+Math.pow(10,pka-pH)) : 1/(1+Math.pow(10,pH-pka));
+const pct=x=> x>0.999?">99.9":x<0.001?"<0.1":(x*100).toFixed(x>0.99||x<0.01?1:0);
+function updPH(){
+  const u=+$("#uph").value, pka=+$("#pka").value;
+  $("#uph-o").textContent=u.toFixed(1); $("#pka-o").textContent=pka.toFixed(1); $("#u-ph-lab").textContent=u.toFixed(1);
+  $("#t-acid").setAttribute("aria-pressed",dtype==="acid"); $("#t-base").setAttribute("aria-pressed",dtype==="base");
+  const fp=ionFrac(7.4,pka,dtype), fu=ionFrac(u,pka,dtype);
+  $("#p-io").style.width=fp*100+"%"; $("#p-ni").style.width=(1-fp)*100+"%";
+  $("#u-io").style.width=fu*100+"%"; $("#u-ni").style.width=(1-fu)*100+"%";
+  $("#p-txt").textContent=pct(fp)+"% ionized"; $("#u-txt").textContent=pct(fu)+"% ionized";
+  // equilibrium ratio of total drug, nonionized equal on both sides
+  const r = dtype==="acid" ? (1+Math.pow(10,u-pka))/(1+Math.pow(10,7.4-pka)) : (1+Math.pow(10,pka-u))/(1+Math.pow(10,pka-7.4));
+  $("#ratio").textContent = r>=100? Math.round(r)+" : 1" : r>=1 ? r.toFixed(1)+" : 1" : "1 : "+(1/r>=100?Math.round(1/r):(1/r).toFixed(1));
+  const v=$("#ph-verdict"); const kind=dtype==="acid"?"weak acid":"weak base";
+  const fix = dtype==="acid" ? "alkalinize the urine (sodium bicarbonate)" : "acidify the urine";
+  if(r>2){v.className="verdict up";v.innerHTML=`<b>Trapped in urine → excretion ↑.</b> This ${kind} is mostly ionized in the urine, so it can't diffuse back. Total drug concentrates in urine about ${r>=100?Math.round(r):r.toFixed(1)}× over plasma.`;}
+  else if(r<0.5){v.className="verdict down";v.innerHTML=`<b>Reabsorbed → excretion ↓.</b> At this urine pH the ${kind} is largely nonionized and slips back into blood. To clear it faster, ${fix}.`;}
+  else {v.className="verdict mid";v.innerHTML=`<b>Little pH effect.</b> Ionization is similar in urine and plasma, so shifting urine pH this far won't change reabsorption much. Try moving the urine pH further from the pKa.`;}
+}
+$("#pka").value=3.0; document.querySelector("#ph-drugs .chip").setAttribute("aria-pressed",true); updPH();
+let blanksHidden=false;
+$("#blank-toggle").onclick=()=>{blanksHidden=!blanksHidden;["#b1","#b2"].forEach(s=>$(s).classList.toggle("hidden",blanksHidden));$("#blank-toggle").textContent=blanksHidden?"Show blanks":"Hide blanks";};
+
+/* ---------- TRANSPORT ---------- */
+const TX = ["All","OAT","OCT","MATE","P-gp"];
+const TDRUGS = [
+  {n:"Penicillins",c:"Organic anion",tx:["OAT"]},
+  {n:"NSAIDs",c:"Organic anion",tx:["OAT"]},
+  {n:"Methotrexate",c:"Organic anion",tx:["OAT"]},
+  {n:"Loop diuretics",c:"Organic anion",tx:["OAT"]},
+  {n:"Thiazides",c:"Organic anion",tx:["OAT"]},
+  {n:"Uric acid",c:"Endogenous anion",tx:["OAT"]},
+  {n:"Probenecid",c:"OAT inhibitor",tx:["OAT"]},
+  {n:"Metformin",c:"Organic cation",tx:["OCT","MATE"]},
+  {n:"Cimetidine",c:"Organic cation",tx:["OCT","MATE"]},
+  {n:"Digoxin",c:"P-gp substrate",tx:["P-gp"]}
+];
+const DDI = [
+  {tx:"OAT",t:"Probenecid + penicillin",d:"Probenecid competitively blocks OAT secretion, keeping penicillin levels higher for longer. Used on purpose."},
+  {tx:"OAT",t:"NSAIDs + methotrexate",d:"Both compete for OAT secretion; methotrexate accumulates and toxicity risk rises."},
+  {tx:"OAT",t:"Thiazide / loop + uric acid",d:"Diuretics compete with urate for secretion, which can raise uric acid and trigger gout."},
+  {tx:"OCT",t:"Cimetidine + metformin",d:"Cimetidine competes for OCT2/MATE secretion and raises metformin exposure."},
+  {tx:"P-gp",t:"P-gp inhibitors + digoxin",d:"Inhibitors such as verapamil or amiodarone reduce digoxin secretion; digoxin levels rise."}
+];
+DDI.find(x=>x.tx==="OCT").tx2="MATE";
+TX.forEach((t,i)=>{const b=document.createElement("button");b.className="chip";b.textContent=t;b.onclick=()=>updTX(t);$("#tx-chips").append(b);});
+$("#drug-grid").innerHTML=TDRUGS.map(d=>`<div class="drug" data-tx="${d.tx.join(" ")}"><b>${d.n}</b><span>${d.c} · ${d.tx.join(", ")}</span></div>`).join("");
+function updTX(t){
+  document.querySelectorAll("#tx-chips .chip").forEach(b=>b.setAttribute("aria-pressed",b.textContent===t));
+  document.querySelectorAll(".drug").forEach(el=>{const has=t==="All"||el.dataset.tx.split(" ").includes(t);el.classList.toggle("dim",!has);el.classList.toggle("hit",has&&t!=="All");});
+  const list=DDI.filter(x=>t==="All"||x.tx===t||x.tx2===t);
+  $("#ddi").innerHTML=list.length?list.map(x=>`<div><b>${x.t}</b><span class="muted" style="font-size:.92rem">${x.d}</span></div>`).join(""):'<p class="muted">No classic interaction listed for this carrier.</p>';
+}
+updTX("All");
+
+/* ---------- CKD ---------- */
+const svg=$("#ckd-svg"); const X0=40,X1=325,Y0=170,Y1=15;
+const xs=n=>X0+(100-n)/90*(X1-X0);   // 100% at left -> 10% at right
+const ys=g=>Y0-(g/240)*(Y0-Y1);
+const rest=n=>Math.min(120,240*n/100), mx=n=>240*n/100;
+function line(f){let d="";for(let n=100;n>=10;n-=1)d+=(n===100?"M":"L")+xs(n).toFixed(1)+" "+ys(f(n)).toFixed(1);return d;}
+let s=`<line x1="${X0}" y1="${Y0}" x2="${X1}" y2="${Y0}" stroke="var(--line)"/>`;
+[0,60,120,180,240].forEach(g=>{s+=`<line x1="${X0}" x2="${X1}" y1="${ys(g)}" y2="${ys(g)}" stroke="var(--line)" stroke-dasharray="2 4"/><text x="${X0-6}" y="${ys(g)+3}" text-anchor="end">${g}</text>`;});
+[100,75,50,25,10].forEach(n=>{s+=`<text x="${xs(n)}" y="${Y0+14}" text-anchor="middle">${n}%</text>`;});
+s+=`<text x="${(X0+X1)/2}" y="198" text-anchor="middle">functioning nephrons →  fewer</text>`;
+s+=`<path d="${line(mx)}" fill="none" stroke="var(--plasma)" stroke-width="2" stroke-dasharray="5 3"/>`;
+s+=`<path d="${line(rest)}" fill="none" stroke="var(--accent)" stroke-width="2.5"/>`;
+s+=`<line id="ck-cursor" y1="${Y1}" y2="${Y0}" stroke="var(--fg)" stroke-width="1"/><circle id="ck-dot" r="5" fill="var(--accent)"/>`;
+svg.innerHTML=s;
+function updCKD(){
+  const n=+$("#neph").value; $("#neph-o").textContent=n+"%";
+  const g=rest(n), m=mx(n), rfr=Math.max(0,(m-120)/120*100);
+  $("#ck-gfr").textContent=Math.round(g); $("#ck-rfr").textContent=Math.round(rfr);
+  $("#ck-sn").textContent=(g/(120*n/100)).toFixed(2)+"×";
+  $("#ck-cursor").setAttribute("x1",xs(n));$("#ck-cursor").setAttribute("x2",xs(n));
+  $("#ck-dot").setAttribute("cx",xs(n));$("#ck-dot").setAttribute("cy",ys(g));
+  $("#ck-note").innerHTML = n===100 ? "<b>Healthy kidney.</b> Resting GFR is 120 mL/min with full reserve to spare. A protein load could push GFR well above baseline."
+   : n>50 ? `<b>Silent loss.</b> ${100-n}% of nephrons are gone, yet resting GFR still reads 120. Survivors are filtering ${(100/n).toFixed(2)}× harder. Only a reserve test (e.g., protein load) would show the damage. This is why early CKD goes undetected.`
+   : `<b>Reserve exhausted.</b> Survivors are at max output, so every further nephron lost now shows up as a GFR drop. Sustained hyperfiltration also damages the remaining glomeruli, which feeds the decline.`;
+}
+$("#neph").addEventListener("input",updCKD); updCKD();
+
+/* ---------- APPLICATION ---------- */
+const QA = [
+  ["Why would a prescriber pair probenecid with penicillin?",
+   "<p>Penicillin is an organic anion that is actively secreted by OATs in the proximal tubule. Probenecid competes for the same carrier, so penicillin secretion slows.</p><p><b>Result:</b> higher and longer-lasting penicillin plasma concentrations from the same dose.</p>"],
+  ["Thiazide and loop diuretics reach their target by tubular secretion. Which adverse effect does that cause?",
+   "<p><b>Hyperuricemia and gout.</b> Thiazides and loops are organic anions that reach their site of action by OAT secretion. Uric acid uses the same pathway, so the diuretics compete with it and urate secretion falls. (Volume depletion also boosts proximal urate reabsorption.)</p>"],
+  ["After an aspirin overdose, how can you speed up renal excretion of salicylate?",
+   "<p><b>Alkalinize the urine</b> with IV sodium bicarbonate. Raising urine pH well above salicylate's pKa (~3) makes more of it ionized in the tubule. Ionized drug can't be passively reabsorbed, so it's trapped in the urine and excreted.</p><p>Try it in the urine pH tool above: salicylate at urine pH 8 vs. 5.</p>"],
+  ["How does long-standing hypertension damage the glomerulus, and how does lisinopril protect it?",
+   "<p>High systemic pressure is transmitted into the glomerular capillaries, raising P<sub>GC</sub>. That causes hyperfiltration, endothelial and podocyte injury, and eventually glomerulosclerosis and nephron loss. Per the intact nephron hypothesis, surviving nephrons then hyperfiltrate even more, a cycle that speeds decline.</p><p><b>Lisinopril</b> (ACE inhibitor) lowers angiotensin II, which <b>dilates the efferent arteriole</b>. Intraglomerular pressure falls, hyperfiltration and proteinuria drop, and the glomerulus is protected beyond the effect of lowering systemic BP.</p>"],
+  ["What happens to GFR when a patient with renal artery stenosis starts an ACE inhibitor?",
+   "<p>With a narrowed renal artery, less pressure reaches the glomerulus. The kidney keeps GFR up by releasing renin; angiotensin II constricts the efferent arteriole to hold P<sub>GC</sub> up.</p><p>An ACE inhibitor removes that efferent constriction, so P<sub>GC</sub> and <b>GFR fall sharply</b>, risking acute kidney injury (especially in bilateral stenosis or stenosis of a single functioning kidney). See the “Renal artery stenosis + ACEi” scenario above.</p>"],
+  ["Why does imipenem come combined with cilastatin?",
+   "<p>Imipenem is broken down by <b>dehydropeptidase-I</b>, a peptidase on the brush border of the proximal tubule. Cilastatin inhibits that enzyme.</p><p><b>Result:</b> imipenem isn't inactivated in the kidney, reaches useful urinary concentrations, and nephrotoxic metabolites are avoided.</p>"]
+];
+$("#qa").innerHTML=QA.map((q,i)=>`<details class="qa"><summary><span class="n">${i+1}.</span><span>${q[0]}</span></summary><div class="ans">${q[1]}</div></details>`).join("");
+
+/* ---------- QUIZ ---------- */
+const QUIZ = [
+  {s:"P_GC is 55 mmHg, π_GC is 30 mmHg, and P_BS is 15 mmHg. What is the net filtration pressure?",
+   o:["10 mmHg","40 mmHg","70 mmHg","100 mmHg"],a:0,e:"NFP = 55 − 30 − 15 = 10 mmHg. Both oncotic and Bowman's pressures oppose filtration."},
+  {s:"Furosemide is 91–99% protein bound. How does it reach its site of action in the loop?",
+   o:["Filtered freely at the glomerulus","Secreted by OATs in proximal tubule","Reabsorbed from the collecting duct","Diffuses in across the distal tubule"],a:1,e:"Protein-bound drug isn't filtered, but OAT carriers in the proximal tubule actively secrete furosemide into the lumen."},
+  {s:"A patient on lisinopril starts daily ibuprofen. What happens at the glomerulus?",
+   o:["Afferent dilates and efferent narrows","Afferent narrows and efferent dilates","Both arterioles constrict together","Both arterioles dilate together"],a:1,e:"NSAIDs constrict the afferent arteriole (less prostaglandin) and ACEi dilate the efferent arteriole. P_GC falls on both ends, so GFR drops."},
+  {s:"Which urine change best speeds excretion of a weak acid overdose?",
+   o:["Acidify urine to keep it nonionized","Alkalinize urine to keep it ionized","Acidify urine to keep it ionized","Alkalinize urine to keep it nonionized"],a:1,e:"In alkaline urine a weak acid is ionized, so it can't diffuse back and is trapped in the urine."},
+  {s:"Why is imipenem given with cilastatin?",
+   o:["Cilastatin blocks OAT secretion of imipenem","Cilastatin inhibits renal brush-border peptidase","Cilastatin raises imipenem protein binding","Cilastatin inhibits hepatic CYP metabolism"],a:1,e:"Dehydropeptidase-I in the proximal tubule brush border degrades imipenem; cilastatin inhibits it."},
+  {s:"Cimetidine raises metformin levels mainly by competing at which transporters?",
+   o:["OAT1 and OAT3 on the basolateral side","OCT2 and MATE on the tubular cells","P-gp and MRP2 on the apical membrane","OATP1B1 on the hepatocyte surface"],a:1,e:"Metformin and cimetidine are organic cations secreted via OCT2 (uptake) and MATE (efflux into lumen)."},
+  {s:"What does the intact nephron hypothesis help explain?",
+   o:["Why GFR looks normal early in CKD","Why proteins can't cross the glomerulus","Why urine pH controls drug trapping","Why the loop builds a medullary gradient"],a:0,e:"Surviving nephrons hyperfiltrate and compensate, so measured GFR stays near normal until much nephron mass is lost."},
+  {s:"Which change typically comes first as nephrons are lost?",
+   o:["Resting GFR falls below 60 mL/min","Serum creatinine rises above normal","Renal functional reserve is reduced","Urine output drops below 400 mL/day"],a:2,e:"RFR loss precedes measurable GFR decline. Compensation uses up reserve before baseline GFR changes."},
+  {s:"A drug is <30% renally excreted. How can CKD still raise its levels?",
+   o:["Uremic toxins inhibit hepatic CYPs and UGTs","More of the drug is filtered at the glomerulus","Urine becomes alkaline and traps the drug","Albumin rises and carries more drug to liver"],a:0,e:"Uremic toxins inhibit and downregulate hepatic enzymes (e.g., CYP2C9) and inhibit OATPs/P-gp, reducing non-renal clearance."},
+  {s:"Which change would decrease GFR?",
+   o:["Efferent arteriole constriction","Lower plasma oncotic pressure","Higher Bowman's capsule pressure","Higher glomerular capillary pressure"],a:2,e:"Higher P_BS (e.g., urinary obstruction) opposes filtration. The other three all raise net filtration pressure."},
+  {s:"Where is about 70% of filtered Na⁺ and water reabsorbed?",
+   o:["Proximal tubule","Loop of Henle","Distal tubule","Collecting duct"],a:0,e:"The proximal tubule does the bulk reabsorption and most drug secretion."}
+];
+let answered={};
+function renderQuiz(){
+  answered={};
+  $("#quiz-list").innerHTML=QUIZ.map((q,i)=>`<div class="q" id="q${i}"><p class="stem">${i+1}. ${q.s}</p><div class="opts">${q.o.map((o,j)=>`<button class="opt" data-q="${i}" data-o="${j}"><span class="k">${"ABCD"[j]}</span><span>${o}</span></button>`).join("")}</div><p class="explain" hidden></p></div>`).join("");
+  document.querySelectorAll(".opt").forEach(b=>b.onclick=()=>pick(+b.dataset.q,+b.dataset.o));
+  score();
+}
+function pick(i,j){
+  if(i in answered)return; answered[i]=j===QUIZ[i].a;
+  const box=$("#q"+i); box.querySelectorAll(".opt").forEach((b,k)=>{b.disabled=true;if(k===QUIZ[i].a)b.classList.add("right");else if(k===j)b.classList.add("wrong");});
+  const ex=box.querySelector(".explain"); ex.hidden=false; ex.innerHTML=(answered[i]?"<b style='color:var(--good)'>Correct.</b> ":"<b style='color:var(--bad)'>Not quite.</b> ")+QUIZ[i].e;
+  score();
+}
+function score(){const n=Object.keys(answered).length,c=Object.values(answered).filter(Boolean).length;$("#score").textContent=`${c} correct · ${n} / ${QUIZ.length} answered`;}
+$("#reset").onclick=renderQuiz; renderQuiz();
+</script>
+
+</body></html>

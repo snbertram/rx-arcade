@@ -1,0 +1,452 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Nephron Shift</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=Nunito+Sans:opsz,wght@6..12,400;6..12,600;6..12,800&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: single game console column — HUD strip, case card, answer pads, twin nephron monitors. Deliberately one dark "ward monitor" look. */
+:root{
+  color-scheme:dark;
+  --bg:#17132a; --panel:#211c3a; --panel-2:#2b2550; --line:#3a3366;
+  --fg:#efeaff; --muted:#a59fc8;
+  --blood:#ff6f7d; --urine:#f6c453; --drug:#62e3d4; --body:#8f9bff;
+  --good:#5ee09a; --bad:#ff7a6b;
+  --f-display:"Chakra Petch", "Eurostile", system-ui, sans-serif;
+  --f-body:"Nunito Sans", "Segoe UI", system-ui, sans-serif;
+  --f-mono:"JetBrains Mono", ui-monospace, Menlo, monospace;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:16px;line-height:1.5;
+  background-image:radial-gradient(circle at 15% -10%, #2c2257 0, transparent 45%),radial-gradient(circle at 110% 30%, #2a1838 0, transparent 40%)}
+.wrap{max-width:900px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px}
+h1,h2,h3{font-family:var(--f-display);margin:0;line-height:1.1;text-wrap:balance}
+p{margin:0}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible{outline:2px solid var(--drug);outline-offset:2px}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.label{font-family:var(--f-mono);font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+
+/* HUD */
+.hud{display:flex;flex-wrap:wrap;gap:8px 20px;align-items:center;justify-content:space-between;padding:10px 14px;border:1px solid var(--line);border-radius:12px;background:var(--panel);margin-bottom:16px}
+.hud .brand{font-family:var(--f-display);font-weight:700;font-size:1.15rem;letter-spacing:.04em}
+.hud .brand span{color:var(--drug)}
+.hud-stats{display:flex;gap:18px;flex-wrap:wrap;align-items:center}
+.hud-stats div{display:grid}
+.hud-stats b{font-family:var(--f-mono);font-size:1.05rem}
+.hearts{font-size:1.1rem;letter-spacing:2px;color:var(--blood)}
+.hearts .lost{color:var(--line)}
+
+/* Screens */
+.screen[hidden]{display:none}
+.intro{display:grid;gap:18px;padding-block:28px}
+.intro h1{font-size:clamp(2.4rem,8vw,4.2rem);font-weight:700;letter-spacing:.02em}
+.intro h1 span{color:var(--drug)}
+.intro p.lead{font-size:1.1rem;color:var(--muted);max-width:58ch}
+.rules{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+@media (max-width:640px){.rules{grid-template-columns:minmax(0,1fr)}}
+.rule{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px}
+.rule h3{font-size:1rem;margin-bottom:4px;color:var(--urine)}
+.rule p{font-size:.93rem;color:var(--muted)}
+.cta{justify-self:start;font-family:var(--f-display);font-weight:700;font-size:1.15rem;letter-spacing:.05em;background:var(--drug);color:#10202a;border:0;border-radius:10px;padding:12px 26px;box-shadow:0 0 0 4px #62e3d422}
+.cta:hover{filter:brightness(1.08)}
+.cta:disabled{background:var(--panel-2);color:var(--muted);box-shadow:none;cursor:not-allowed}
+
+/* Case */
+.case{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;display:grid;gap:12px}
+.case-top{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:baseline}
+.case h2{font-size:clamp(1.4rem,4vw,1.9rem)}
+.case h2 .plus{color:var(--urine);margin:0 .25em}
+.tags{display:flex;flex-wrap:wrap;gap:6px}
+.tag{font-family:var(--f-mono);font-size:.74rem;padding:3px 8px;border-radius:5px;background:var(--panel-2);color:var(--fg)}
+.tag.mod{background:#f6c45322;color:var(--urine)}
+.scenario{color:var(--muted);max-width:65ch}
+.prompt{font-weight:800;font-size:1.05rem}
+
+.pads{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr);gap:14px;margin-top:4px}
+@media (max-width:640px){.pads{grid-template-columns:minmax(0,1fr)}}
+.pad{display:grid;gap:8px}
+.pad-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.pad-row.four{grid-template-columns:repeat(2,minmax(0,1fr))}
+.key{border:1px solid var(--line);background:var(--panel-2);border-radius:10px;padding:10px 8px;font-weight:800;display:grid;justify-items:center;gap:2px;transition:transform .08s,border-color .15s,background .15s}
+.key .g{font-family:var(--f-display);font-size:1.5rem;line-height:1}
+.key small{font-weight:600;font-size:.75rem;color:var(--muted)}
+.key:hover:not(:disabled){border-color:var(--muted)}
+.key:active:not(:disabled){transform:translateY(1px)}
+.key[aria-pressed="true"]{border-color:var(--drug);background:#62e3d41f}
+.key.right{border-color:var(--good);background:#5ee09a22}
+.key.wrong{border-color:var(--bad);background:#ff7a6b22}
+.key:disabled{cursor:default}
+.lock-row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+
+/* Monitors */
+.monitors{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:16px}
+@media (max-width:720px){.monitors{grid-template-columns:minmax(0,1fr)}}
+.mon{background:#120f22;border:1px solid var(--line);border-radius:12px;padding:10px;min-width:0}
+.mon-head{display:flex;justify-content:space-between;gap:8px;margin-bottom:6px;align-items:baseline}
+.mon-head b{font-family:var(--f-display);font-size:.95rem}
+.mon canvas{width:100%;height:auto;display:block;aspect-ratio:560/210}
+.counts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:6px}
+.counts div{background:var(--panel);border-radius:6px;padding:5px 7px}
+.counts b{display:block;font-family:var(--f-mono);font-size:1rem}
+.counts span{font-size:.7rem;color:var(--muted)}
+.counts .u b{color:var(--urine)} .counts .x b{color:var(--muted)} .counts .r b{color:var(--body)}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:.78rem;color:var(--muted);margin-top:8px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}
+
+.verdict{margin-top:14px;border-radius:12px;padding:14px 16px;border:1px solid var(--line);background:var(--panel)}
+.verdict.ok{border-color:var(--good)} .verdict.no{border-color:var(--bad)}
+.verdict h3{font-size:1.15rem;margin-bottom:6px}
+.verdict.ok h3{color:var(--good)} .verdict.no h3{color:var(--bad)}
+.verdict p{color:var(--fg);max-width:70ch}
+.verdict .pts{font-family:var(--f-mono);color:var(--urine);margin-top:8px;font-size:.9rem}
+.next-row{display:flex;justify-content:flex-end;margin-top:14px}
+
+/* End */
+.end{display:grid;gap:16px;padding-block:20px}
+.end .big{font-family:var(--f-display);font-size:clamp(2.6rem,9vw,4.4rem);font-weight:700;color:var(--drug);line-height:1}
+.rank{font-family:var(--f-display);font-size:1.4rem;color:var(--urine)}
+.review{display:grid;gap:10px}
+.review div{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--bad);border-radius:8px;padding:10px 14px}
+.review b{display:block}
+.review span{color:var(--muted);font-size:.93rem}
+.foot{color:var(--muted);font-size:.8rem;margin-top:24px;max-width:70ch}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+  <div class="hud">
+    <div class="brand">NEPHRON <span>SHIFT</span></div>
+    <div class="hud-stats">
+      <div><span class="label">Case</span><b id="h-round">–</b></div>
+      <div><span class="label">Score</span><b id="h-score">0</b></div>
+      <div><span class="label">Streak</span><b id="h-streak">0</b></div>
+      <div><span class="label">Patient safety</span><span class="hearts" id="h-hearts">♥♥♥</span></div>
+    </div>
+  </div>
+
+  <!-- INTRO -->
+  <section class="screen intro" id="s-intro">
+    <span class="label">Renal drug handling</span>
+    <h1>Nephron <span>Shift</span></h1>
+    <p class="lead">You're covering the renal pharmacy consult service. Each case pairs a drug with a new medication or comorbidity. Call what happens to its excretion before the kidney shows you.</p>
+    <div class="rules">
+      <div class="rule"><h3>1 · Call the direction</h3><p>Does excretion go up, down, or stay the same? +100 if right.</p></div>
+      <div class="rule"><h3>2 · Name the process</h3><p>Filtration, secretion, reabsorption, or renal metabolism? +50 more, plus streak bonuses.</p></div>
+      <div class="rule"><h3>3 · Protect the patient</h3><p>A wrong direction costs a heart. Lose all three and the shift ends early.</p></div>
+    </div>
+    <button class="cta" id="start">Start shift · 10 cases</button>
+  </section>
+
+  <!-- GAME -->
+  <section class="screen" id="s-game" hidden>
+    <div class="case">
+      <div class="case-top"><span class="label" id="c-kind">Drug interaction</span><span class="label" id="c-num"></span></div>
+      <h2 id="c-title"></h2>
+      <div class="tags" id="c-tags"></div>
+      <p class="scenario" id="c-scen"></p>
+      <p class="prompt" id="c-prompt"></p>
+      <div class="pads">
+        <div class="pad"><span class="label">Direction</span>
+          <div class="pad-row" id="pad-dir">
+            <button class="key" data-v="up"><span class="g">↑</span><small>Increases</small></button>
+            <button class="key" data-v="down"><span class="g">↓</span><small>Decreases</small></button>
+            <button class="key" data-v="same"><span class="g">↔</span><small>No change</small></button>
+          </div></div>
+        <div class="pad"><span class="label">Process responsible</span>
+          <div class="pad-row four" id="pad-proc">
+            <button class="key" data-v="Filtration"><span>Filtration</span><small>glomerulus</small></button>
+            <button class="key" data-v="Secretion"><span>Secretion</span><small>transporters</small></button>
+            <button class="key" data-v="Reabsorption"><span>Reabsorption</span><small>back to blood</small></button>
+            <button class="key" data-v="Metabolism"><span>Metabolism</span><small>renal enzymes</small></button>
+          </div></div>
+      </div>
+      <div class="lock-row"><button class="cta" id="lock" disabled>Lock in &amp; run kidney</button><span class="label" id="lock-hint">Pick a direction and a process</span></div>
+    </div>
+
+    <div id="results" hidden>
+      <div class="monitors">
+        <div class="mon"><div class="mon-head"><b>Before</b><span class="label" id="m0-sub">drug alone</span></div>
+          <canvas id="cv0" width="1120" height="420"></canvas>
+          <div class="counts"><div class="u"><b id="u0">0</b><span>in urine</span></div><div class="x"><b id="x0">0</b><span>inactivated</span></div><div class="r"><b id="r0">0</b><span>back to body</span></div></div></div>
+        <div class="mon"><div class="mon-head"><b>After</b><span class="label" id="m1-sub"></span></div>
+          <canvas id="cv1" width="1120" height="420"></canvas>
+          <div class="counts"><div class="u"><b id="u1">0</b><span>in urine</span></div><div class="x"><b id="x1">0</b><span>inactivated</span></div><div class="r"><b id="r1">0</b><span>back to body</span></div></div></div>
+      </div>
+      <div class="legend"><span><i style="background:var(--drug)"></i>Free drug</span><span><i style="background:var(--drug);box-shadow:0 0 0 2px var(--blood)"></i>Protein-bound (can't filter)</span><span><i style="background:var(--muted)"></i>Inactivated</span></div>
+      <div class="verdict" id="verdict"></div>
+      <div class="next-row"><button class="cta" id="next">Next case →</button></div>
+    </div>
+  </section>
+
+  <!-- END -->
+  <section class="screen end" id="s-end" hidden>
+    <span class="label" id="e-reason">Shift complete</span>
+    <div class="big" id="e-score">0</div>
+    <div class="rank" id="e-rank"></div>
+    <p class="muted" id="e-line" style="color:var(--muted)"></p>
+    <div id="e-review-wrap"><span class="label">Review what you missed</span><div class="review" id="e-review" style="margin-top:8px"></div></div>
+    <button class="cta" id="again">Play another shift</button>
+  </section>
+
+  <p class="foot">The nephron animation is a simplified model meant to show direction, not real clearance values. For educational purposes only. Not clinical advice.</p>
+</div>
+
+<script>
+const $=s=>document.querySelector(s);
+const D={bound:0,filt:.2,sec:0,reab:0,metab:0};
+const P=o=>Object.assign({},D,o);
+
+/* zone keys for badges: glom, pct, distal, urine */
+const CASES=[
+ {drug:"Penicillin G",mod:"Probenecid",kind:"Drug interaction",tags:["Organic anion","OAT substrate","~60% protein bound"],
+  scen:"A patient with syphilis gets penicillin G, and the team adds probenecid.",prompt:"Renal excretion of penicillin will…",
+  dir:"down",proc:["Secretion"],base:P({bound:.5,sec:.7}),after:P({bound:.5,sec:.1}),badges:[["pct","OAT blocked"]],sub:"+ probenecid",
+  why:"Probenecid competitively inhibits OATs in the proximal tubule. Penicillin is secreted mainly by OATs, so less reaches the urine and plasma levels stay higher longer. This one is done on purpose."},
+ {drug:"Methotrexate",mod:"Naproxen",kind:"Drug interaction",tags:["Weak acid","OAT substrate","~50% protein bound"],
+  scen:"A rheumatoid arthritis patient on weekly methotrexate starts OTC naproxen for knee pain.",prompt:"Renal excretion of methotrexate will…",
+  dir:"down",proc:["Secretion"],base:P({bound:.5,sec:.6}),after:P({bound:.5,sec:.2}),badges:[["pct","NSAID competes at OAT"]],sub:"+ naproxen",
+  why:"NSAIDs compete with methotrexate for OAT secretion (and can lower GFR). Methotrexate accumulates, raising the risk of marrow suppression and mucositis."},
+ {drug:"Metformin",mod:"Cimetidine",kind:"Drug interaction",tags:["Organic cation","OCT2 / MATE substrate","Not protein bound"],
+  scen:"A patient with type 2 diabetes on metformin starts cimetidine for reflux.",prompt:"Renal excretion of metformin will…",
+  dir:"down",proc:["Secretion"],base:P({sec:.7}),after:P({sec:.3}),badges:[["pct","OCT2/MATE competition"]],sub:"+ cimetidine",
+  why:"Metformin leaves the body almost entirely unchanged in urine, largely by OCT2 uptake and MATE efflux. Cimetidine is a cation that competes for the same carriers, so metformin exposure rises."},
+ {drug:"Metformin",mod:"Probenecid",kind:"Trick case",tags:["Organic cation","OCT2 / MATE substrate","Not protein bound"],
+  scen:"A patient on metformin is started on probenecid for gout.",prompt:"Renal excretion of metformin will…",
+  dir:"same",proc:["Secretion"],base:P({sec:.7}),after:P({sec:.7}),badges:[["pct","OAT blocked · OCT open"]],sub:"+ probenecid",
+  why:"Probenecid blocks organic <b>anion</b> transporters. Metformin is a <b>cation</b> secreted by OCT2/MATE, a different pathway, so its secretion carries on. Match the drug's charge to the carrier."},
+ {drug:"Digoxin",mod:"Amiodarone",kind:"Drug interaction",tags:["P-gp substrate","20–30% protein bound","Narrow therapeutic index"],
+  scen:"A heart failure patient on digoxin develops atrial fibrillation and is started on amiodarone.",prompt:"Renal excretion of digoxin will…",
+  dir:"down",proc:["Secretion"],base:P({bound:.25,sec:.5}),after:P({bound:.25,sec:.15}),badges:[["pct","P-gp inhibited"]],sub:"+ amiodarone",
+  why:"Digoxin is pumped into the tubule by P-gp. Amiodarone (like verapamil) inhibits P-gp, so digoxin levels climb. The usual move is to cut the digoxin dose and monitor levels."},
+ {drug:"Furosemide",mod:"Probenecid",kind:"Drug interaction",tags:["Organic anion","91–99% protein bound","Acts from inside the tubule"],
+  scen:"A patient on furosemide for edema is also given probenecid.",prompt:"Furosemide reaching the urine will…",
+  dir:"down",proc:["Secretion"],base:P({bound:.95,sec:.8}),after:P({bound:.95,sec:.2}),badges:[["pct","OAT blocked"]],sub:"+ probenecid",
+  why:"Furosemide is almost entirely albumin-bound, so it isn't filtered. It gets into the lumen only by OAT secretion. Block OAT and less drug reaches the loop of Henle, so diuresis weakens too."},
+ {drug:"Vancomycin",mod:"Probenecid",kind:"Trick case",tags:["Large glycopeptide","30–55% protein bound","Cleared by filtration"],
+  scen:"A patient on vancomycin is also prescribed probenecid.",prompt:"Renal excretion of vancomycin will…",
+  dir:"same",proc:["Filtration"],base:P({bound:.4}),after:P({bound:.4}),badges:[["pct","OAT blocked · not used"]],sub:"+ probenecid",
+  why:"Vancomycin is eliminated mainly by glomerular filtration, not OAT secretion. Blocking OAT leaves it alone. Its clearance follows GFR, which is why dosing is based on kidney function."},
+ {drug:"Aspirin (salicylate)",mod:"IV sodium bicarbonate",kind:"Overdose",tags:["Weak acid · pKa 3.0","OAT substrate","Concentration-dependent binding"],
+  scen:"A patient arrives after an intentional aspirin overdose. Toxicology starts IV sodium bicarbonate.",prompt:"Renal excretion of salicylate will…",
+  dir:"up",proc:["Reabsorption"],base:P({bound:.5,sec:.3,reab:.7}),after:P({bound:.5,sec:.3,reab:.08}),badges:[["urine","Urine pH ~8"]],sub:"+ bicarbonate",
+  why:"In alkaline urine, a weak acid is mostly ionized. Ionized drug can't cross tubular cells back into blood, so it's trapped in the urine. That's ion trapping."},
+ {drug:"Amphetamine",mod:"Ammonium chloride",kind:"Overdose",tags:["Weak base · pKa 9.9","~20% protein bound"],
+  scen:"In an older protocol for amphetamine toxicity, the urine is acidified with ammonium chloride.",prompt:"Renal excretion of amphetamine will…",
+  dir:"up",proc:["Reabsorption"],base:P({bound:.2,sec:.1,reab:.6}),after:P({bound:.2,sec:.1,reab:.1}),badges:[["urine","Urine pH ~5"]],sub:"+ urine acidified",
+  why:"Acidic urine ionizes a weak base, so less is passively reabsorbed. (Acidification is rarely used today because of acidosis and rhabdomyolysis risk, but it's a classic example of ion trapping.)"},
+ {drug:"Phenobarbital",mod:"IV sodium bicarbonate",kind:"Overdose",tags:["Weak acid · pKa 7.2","20–45% protein bound"],
+  scen:"A patient with phenobarbital toxicity is given bicarbonate to alkalinize the urine.",prompt:"Renal excretion of phenobarbital will…",
+  dir:"up",proc:["Reabsorption"],base:P({bound:.4,reab:.7}),after:P({bound:.4,reab:.35}),badges:[["urine","Urine pH ~8"]],sub:"+ bicarbonate",
+  why:"Phenobarbital is a weak acid with a pKa near 7.2. Raising urine pH above that ionizes more of it and cuts passive reabsorption. The effect is smaller than with salicylate because the pKa is closer to urine pH."},
+ {drug:"Methotrexate (high dose)",mod:"Urine alkalinization",kind:"Supportive care",tags:["Weak acid · pKa ~4.8","OAT substrate"],
+  scen:"An oncology patient getting high-dose methotrexate receives bicarbonate to keep urine pH ≥ 7.",prompt:"Renal excretion of methotrexate will…",
+  dir:"up",proc:["Reabsorption"],base:P({bound:.5,sec:.5,reab:.5}),after:P({bound:.5,sec:.5,reab:.12}),badges:[["urine","Urine pH ≥ 7"]],sub:"+ alkaline urine",
+  why:"Alkaline urine keeps methotrexate ionized. That cuts passive reabsorption and also keeps it from precipitating as crystals in the tubules."},
+ {drug:"Lithium",mod:"Hydrochlorothiazide",kind:"Drug interaction",tags:["Small cation","Not protein bound","Reabsorbed like Na⁺"],
+  scen:"A patient stable on lithium for bipolar disorder is started on hydrochlorothiazide for blood pressure.",prompt:"Renal excretion of lithium will…",
+  dir:"down",proc:["Reabsorption"],base:P({reab:.75}),after:P({reab:.9}),badges:[["pct","Na⁺ depleted · ↑ reabsorption"]],sub:"+ HCTZ",
+  why:"Thiazides cause sodium and volume loss. The proximal tubule responds by reabsorbing more Na⁺, and lithium goes back with it. Lithium levels rise, sometimes to toxic levels."},
+ {drug:"Gentamicin",mod:"CKD stage 4",kind:"Comorbidity",tags:["Polar aminoglycoside","<30% protein bound","Cleared by filtration"],
+  scen:"A patient with CKD stage 4 (eGFR ~20 mL/min) needs gentamicin.",prompt:"Renal excretion of gentamicin will…",
+  dir:"down",proc:["Filtration"],base:P({}),after:P({filt:.05}),badges:[["glom","Fewer working nephrons"]],sub:"CKD stage 4",
+  why:"Gentamicin is cleared almost entirely by glomerular filtration. With far fewer nephrons, GFR falls and so does gentamicin clearance. Extend the dosing interval and follow levels."},
+ {drug:"Gentamicin",mod:"Ibuprofen + dehydration",kind:"Comorbidity",tags:["Polar aminoglycoside","Cleared by filtration"],
+  scen:"A dehydrated patient on gentamicin has been taking ibuprofen around the clock.",prompt:"Renal excretion of gentamicin will…",
+  dir:"down",proc:["Filtration"],base:P({}),after:P({filt:.09}),badges:[["glom","Afferent constricted"]],sub:"+ NSAID, low volume",
+  why:"When the kidney is underperfused, prostaglandins keep the afferent arteriole open. NSAIDs block that, so glomerular pressure and GFR drop. Gentamicin accumulates, and so does its nephrotoxicity."},
+ {drug:"Vancomycin",mod:"Augmented renal clearance",kind:"Comorbidity",tags:["Cleared by filtration","30–55% protein bound"],
+  scen:"A 24-year-old trauma patient in the ICU is hyperdynamic and has a very high measured creatinine clearance.",prompt:"Renal excretion of vancomycin will…",
+  dir:"up",proc:["Filtration"],base:P({bound:.4}),after:P({bound:.4,filt:.32}),badges:[["glom","Hyperfiltration"]],sub:"↑ GFR",
+  why:"Young, critically ill patients can have glomerular hyperfiltration. More filtration means faster vancomycin clearance and a risk of underdosing. Levels guide the dose."},
+ {drug:"Imipenem",mod:"Cilastatin",kind:"Drug combination",tags:["Carbapenem","~20% protein bound","Brush-border peptidase substrate"],
+  scen:"Imipenem is ordered for a complicated UTI, and it comes combined with cilastatin.",prompt:"Active imipenem reaching the urine will…",
+  dir:"up",proc:["Metabolism"],base:P({bound:.2,sec:.3,metab:.75}),after:P({bound:.2,sec:.3,metab:.05}),badges:[["pct","Peptidase inhibited"]],sub:"+ cilastatin",
+  why:"Dehydropeptidase-I on the proximal tubule brush border breaks down imipenem. Cilastatin inhibits it, so active drug reaches the urine and nephrotoxic metabolites are avoided."},
+ {drug:"Insulin",mod:"Advanced CKD",kind:"Comorbidity",tags:["Small peptide","Filtered, then degraded by tubule"],
+  scen:"A patient with type 2 diabetes and worsening CKD (eGFR ~18) keeps having low blood sugars on the same insulin dose.",prompt:"Kidney clearance of insulin will…",
+  dir:"down",proc:["Metabolism","Filtration"],base:P({filt:.3,metab:.9}),after:P({filt:.08,metab:.9}),badges:[["glom","Fewer working nephrons"]],sub:"advanced CKD",
+  why:"Insulin is filtered and then broken down by proximal tubule peptidases. With fewer nephrons, less is filtered and degraded, so insulin lasts longer and hypoglycemia follows. Either filtration or metabolism counts here."}
+];
+const KIND_SUB={};
+
+/* ---------- state ---------- */
+let deck=[],round=0,score=0,streak=0,hearts=3,missed=[],pick={dir:null,proc:null},cur=null;
+const ROUNDS=10;
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+function show(id){["#s-intro","#s-game","#s-end"].forEach(s=>$(s).hidden=s!==id);}
+function hud(){
+  $("#h-round").textContent=round?`${Math.min(round,ROUNDS)}/${ROUNDS}`:"–";
+  $("#h-score").textContent=score;$("#h-streak").textContent=streak;
+  $("#h-hearts").innerHTML=[0,1,2].map(i=>i<hearts?"♥":'<span class="lost">♥</span>').join("");
+}
+function startGame(){deck=shuffle(CASES.slice()).slice(0,ROUNDS);round=0;score=0;streak=0;hearts=3;missed=[];nextCase();}
+function nextCase(){
+  if(round>=ROUNDS||hearts<=0){return endGame();}
+  cur=deck[round];round++;pick={dir:null,proc:null};hud();show("#s-game");
+  $("#c-kind").textContent=cur.kind;$("#c-num").textContent=`Case ${round} of ${ROUNDS}`;
+  $("#c-title").innerHTML=`${cur.drug}<span class="plus">+</span>${cur.mod}`;
+  $("#c-tags").innerHTML=cur.tags.map(t=>`<span class="tag">${t}</span>`).join("")+`<span class="tag mod">${cur.mod}</span>`;
+  $("#c-scen").textContent=cur.scen;$("#c-prompt").textContent=cur.prompt;
+  document.querySelectorAll(".key").forEach(k=>{k.disabled=false;k.className="key";k.setAttribute("aria-pressed","false");});
+  $("#lock").disabled=true;$("#lock").hidden=false;$("#lock-hint").hidden=false;$("#results").hidden=true;
+  stopSims();
+  window.scrollTo({top:0,behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth"});
+}
+document.querySelectorAll("#pad-dir .key").forEach(k=>k.onclick=()=>{pick.dir=k.dataset.v;document.querySelectorAll("#pad-dir .key").forEach(x=>x.setAttribute("aria-pressed",x===k));ready();});
+document.querySelectorAll("#pad-proc .key").forEach(k=>k.onclick=()=>{pick.proc=k.dataset.v;document.querySelectorAll("#pad-proc .key").forEach(x=>x.setAttribute("aria-pressed",x===k));ready();});
+function ready(){$("#lock").disabled=!(pick.dir&&pick.proc);}
+$("#lock").onclick=()=>{
+  const dOk=pick.dir===cur.dir, pOk=cur.proc.includes(pick.proc);
+  let pts=0; if(dOk)pts+=100; if(pOk)pts+=50;
+  if(dOk&&pOk){streak++; if(streak>1)pts+=25*(streak-1);} else streak=0;
+  if(!dOk){hearts--;}
+  if(!(dOk&&pOk))missed.push(cur);
+  score+=pts;hud();
+  document.querySelectorAll("#pad-dir .key").forEach(k=>{k.disabled=true;if(k.dataset.v===cur.dir)k.classList.add("right");else if(k.dataset.v===pick.dir)k.classList.add("wrong");});
+  document.querySelectorAll("#pad-proc .key").forEach(k=>{k.disabled=true;if(cur.proc.includes(k.dataset.v))k.classList.add("right");else if(k.dataset.v===pick.proc)k.classList.add("wrong");});
+  $("#lock").hidden=true;$("#lock-hint").hidden=true;
+  const arrow={up:"↑ increases",down:"↓ decreases",same:"↔ no change"}[cur.dir];
+  const v=$("#verdict"); v.className="verdict "+(dOk&&pOk?"ok":"no");
+  v.innerHTML=`<h3>${dOk&&pOk?"Nailed it.":dOk?"Right direction, wrong process.":"Not this time."} Excretion ${arrow} · ${cur.proc.join(" / ")}</h3><p>${cur.why}</p>
+    <div class="pts">+${pts} pts${streak>1&&dOk&&pOk?` · streak ×${streak}`:""}${!dOk?" · −1 heart":""}</div>`;
+  $("#m1-sub").textContent=cur.sub;
+  $("#next").textContent=(round>=ROUNDS||hearts<=0)?"See results →":"Next case →";
+  $("#results").hidden=false;
+  runSims(cur);
+  $("#results").scrollIntoView({behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"start"});
+};
+$("#next").onclick=nextCase;
+$("#start").onclick=startGame;$("#again").onclick=startGame;
+function endGame(){
+  stopSims();show("#s-end");hud();
+  $("#e-reason").textContent=hearts<=0?"Shift ended early · out of hearts":"Shift complete";
+  $("#e-score").textContent=score+" pts";
+  const max=ROUNDS*150; const f=score/max;
+  $("#e-rank").textContent= hearts<=0?"Back to the textbook": f>=1?"Attending nephrologist": f>=.8?"Renal pharmacy specialist": f>=.6?"PGY-1 resident": f>=.4?"P3 on rotation":"Still learning the loop";
+  $("#e-line").textContent=`${Math.min(round,ROUNDS)-missed.length} of ${Math.min(round,ROUNDS)} cases fully correct.`;
+  $("#e-review-wrap").hidden=!missed.length;
+  $("#e-review").innerHTML=missed.map(c=>`<div><b>${c.drug} + ${c.mod} → ${({up:"↑",down:"↓",same:"↔"})[c.dir]} (${c.proc.join(" / ")})</b><span>${c.why}</span></div>`).join("");
+}
+
+/* ---------- nephron simulation ---------- */
+const CSS=getComputedStyle(document.documentElement);
+const C=n=>CSS.getPropertyValue(n).trim();
+const COL={blood:C("--blood"),urine:C("--urine"),drug:C("--drug"),muted:C("--muted"),line:C("--line"),fg:C("--fg"),body:C("--body"),panel:C("--panel-2")};
+const W=560,H=210, TY=62, BY=128, GX=72, TEND=520, UX=520, UY=178;
+// paths
+const AFF=[[8,190],[GX,TY+8]];            // afferent into glomerulus
+const CAP=[[GX,TY+8],[96,BY],[480,BY],[548,BY]]; // efferent → peritubular capillary → vein
+const TUBE=[[GX+18,TY],[TEND,TY],[TEND,UY-14]];
+function plen(p){let L=[0];for(let i=1;i<p.length;i++)L.push(L[i-1]+Math.hypot(p[i][0]-p[i-1][0],p[i][1]-p[i-1][1]));return L;}
+const LA=plen(AFF),LC=plen(CAP),LT=plen(TUBE);
+function at(p,L,s){for(let i=1;i<p.length;i++){if(s<=L[i]){const t=(s-L[i-1])/(L[i]-L[i-1]);return[p[i-1][0]+t*(p[i][0]-p[i-1][0]),p[i-1][1]+t*(p[i][1]-p[i-1][1])];}}return p[p.length-1];}
+const capS=x=>LC[2]+(x-96);      // capillary horizontal section starts at x=96 (index 2)
+const tubeS=x=>x-(GX+18);
+function rng(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;}}
+const N=120, SPEED=3;
+let sims=[],raf=null;
+function makeSim(cv,params,badges,ids,seed){
+  const ctx=cv.getContext("2d"); ctx.setTransform(cv.width/W,0,0,cv.height/H,0,0);
+  return {cv,ctx,p:params,badges,ids,R:rng(seed),parts:[],spawned:0,frame:0,c:{u:0,x:0,r:0},urineLevel:0};
+}
+function spawn(sim){
+  const R=sim.R, p=sim.p;
+  const q={track:"aff",s:0,bound:R()<p.bound,
+    rFilt:R(),rSec:R(),secX:110+R()*150,rReab:R(),rReabX:R(),rMet:R(),metX:115+R()*120,done:false,hop:null,dead:0};
+  sim.parts.push(q);sim.spawned++;
+}
+function enterTube(sim,q,x){
+  q.track="tube";q.s=tubeS(x);
+  const p=sim.p;
+  q.willMet = q.rMet<p.metab && x<q.metX;
+  q.willReab = q.rReab<p.reab;
+  q.reabX = Math.max(x+8,120) + q.rReabX*(470-Math.max(x+8,120));
+}
+function step(sim){
+  sim.frame++;
+  if(sim.spawned<N && sim.frame%3===0) spawn(sim);
+  const p=sim.p;
+  for(const q of sim.parts){
+    if(q.done)continue;
+    if(q.dead){q.dead++; if(q.dead>40)q.done=true; continue;}
+    if(q.hop){q.hop.t+=1/14; if(q.hop.t>=1){const h=q.hop;q.hop=null; if(h.to==="tube")enterTube(sim,q,h.x); else {q.track="cap";q.s=capS(h.x);q.noSec=true;}} continue;}
+    q.s+=SPEED;
+    if(q.track==="aff"){ if(q.s>=LA[1]){ if(!q.bound && q.rFilt<p.filt){enterTube(sim,q,GX+18);} else {q.track="cap";q.s=0;} } }
+    else if(q.track==="cap"){
+      const [x]=at(CAP,LC,q.s);
+      if(!q.noSec && q.rSec<p.sec && x>=q.secX && x<q.secX+SPEED+0.5 && q.s>LC[2]){q.hop={from:[x,BY],to:"tube",x,t:0};}
+      if(q.s>=LC[3]){q.done=true;sim.c.r++;}
+    } else if(q.track==="tube"){
+      const [x,y]=at(TUBE,LT,q.s);
+      if(q.willMet && x>=q.metX){q.dead=1;sim.c.x++;q.pos=[x,y];continue;}
+      if(q.willReab && y===TY && x>=q.reabX){q.hop={from:[x,TY],to:"cap",x,t:0};q.willReab=false;continue;}
+      if(q.s>=LT[2]){q.done=true;sim.c.u++;}
+    }
+  }
+  $(sim.ids.u).textContent=sim.c.u;$(sim.ids.x).textContent=sim.c.x;$(sim.ids.r).textContent=sim.c.r;
+  sim.urineLevel+= (sim.c.u - sim.urineLevel)*0.08;
+}
+function draw(sim){
+  const g=sim.ctx; g.clearRect(0,0,W,H);
+  // zone labels
+  g.font="600 9px JetBrains Mono, monospace"; g.fillStyle=COL.muted; g.textAlign="center";
+  [["GLOMERULUS",GX,18],["PROXIMAL TUBULE",185,18],["LOOP · DISTAL",350,18],["COLLECTING",470,18]].forEach(([t,x,y])=>g.fillText(t,x,y));
+  g.textAlign="left"; g.fillText("→ BODY",500,BY+20); g.fillText("BLOOD IN",12,205);
+  // dividers
+  g.strokeStyle=COL.line; g.setLineDash([3,4]); g.lineWidth=1;
+  [[100],[270],[420]].forEach(([x])=>{g.beginPath();g.moveTo(x,24);g.lineTo(x,BY+10);g.stroke();}); g.setLineDash([]);
+  // capillary
+  g.lineCap="round";g.lineJoin="round";
+  g.strokeStyle=COL.blood+"55";g.lineWidth=14;g.beginPath();AFF.forEach((pt,i)=>i?g.lineTo(...pt):g.moveTo(...pt));g.stroke();
+  g.beginPath();CAP.forEach((pt,i)=>i?g.lineTo(...pt):g.moveTo(...pt));g.stroke();
+  // tubule
+  g.strokeStyle=COL.urine+"40";g.lineWidth=16;g.beginPath();TUBE.forEach((pt,i)=>i?g.lineTo(...pt):g.moveTo(...pt));g.stroke();
+  // glomerulus
+  const gw = sim.p.filt<.12? 14 : sim.p.filt>.25? 24 : 19;
+  g.fillStyle=COL.blood+"33";g.strokeStyle=COL.blood;g.lineWidth=2;g.beginPath();g.arc(GX,TY,gw,0,7);g.fill();g.stroke();
+  g.strokeStyle=COL.urine;g.lineWidth=1.5;g.beginPath();g.arc(GX,TY,gw+6,-1.2,1.2+Math.PI*0.9);g.stroke();
+  // urine cup
+  g.strokeStyle=COL.urine;g.lineWidth=2;g.beginPath();g.moveTo(UX-22,UY-14);g.lineTo(UX-18,H-4);g.lineTo(UX+18,H-4);g.lineTo(UX+22,UY-14);g.stroke();
+  const lvl=Math.min(1,sim.urineLevel/N)*(H-4-(UY-14));
+  g.fillStyle=COL.urine+"aa";g.fillRect(UX-18,H-4-lvl,36,lvl);
+  // badges
+  sim.badges.forEach(([z,t])=>{
+    const pos={glom:[GX+30,44],pct:[185,40],distal:[350,40],urine:[UX-30,UY-24]}[z];
+    g.font="700 10px JetBrains Mono, monospace";const w=g.measureText(t).width+12;
+    let bx=Math.max(4,Math.min(W-w-4,pos[0]-w/2)), by=pos[1]-11;
+    if(z==="urine"){bx=Math.max(4,Math.min(W-w-4,UX-w-28));by=UY-6;}
+    g.fillStyle=COL.urine;g.beginPath();g.roundRect?g.roundRect(bx,by,w,16,4):g.rect(bx,by,w,16);g.fill();
+    g.fillStyle="#1a1530";g.textAlign="left";g.fillText(t,bx+6,by+12);
+  });
+  // particles
+  for(const q of sim.parts){
+    if(q.done)continue;
+    let x,y;
+    if(q.hop){const t=q.hop.t, ty=q.hop.to==="tube"?TY:BY, fy=q.hop.from[1];x=q.hop.x;y=fy+(ty-fy)*t;}
+    else if(q.dead){[x,y]=q.pos;}
+    else if(q.track==="aff")[x,y]=at(AFF,LA,q.s);
+    else if(q.track==="cap")[x,y]=at(CAP,LC,q.s);
+    else [x,y]=at(TUBE,LT,q.s);
+    const jit=((q.rFilt*97)%1-.5)*6;
+    y+= q.hop?0:jit;
+    if(q.dead){g.globalAlpha=Math.max(0,1-q.dead/40);g.strokeStyle=COL.muted;g.lineWidth=1.5;g.beginPath();g.moveTo(x-3,y-3);g.lineTo(x+3,y+3);g.moveTo(x+3,y-3);g.lineTo(x-3,y+3);g.stroke();g.globalAlpha=1;continue;}
+    if(q.bound && q.track!=="tube" && !q.hop){g.strokeStyle=COL.blood;g.lineWidth=1.5;g.beginPath();g.arc(x,y,5.5,0,7);g.stroke();}
+    g.fillStyle=COL.drug;g.beginPath();g.arc(x,y,3,0,7);g.fill();
+  }
+}
+const reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;
+function runSims(c){
+  stopSims();
+  const seed=Math.floor(Math.random()*1e9);
+  sims=[makeSim($("#cv0"),c.base,[],{u:"#u0",x:"#x0",r:"#r0"},seed),makeSim($("#cv1"),c.after,c.badges,{u:"#u1",x:"#x1",r:"#r1"},seed)];
+  if(reduce){ // compute instantly
+    sims.forEach(s=>{for(let i=0;i<2000;i++)step(s); s.urineLevel=s.c.u; draw(s);}); return;
+  }
+  const loop=()=>{let alive=false;sims.forEach(s=>{step(s);draw(s);if(s.spawned<N||s.parts.some(q=>!q.done))alive=true;});if(alive)raf=requestAnimationFrame(loop);else raf=null;};
+  raf=requestAnimationFrame(loop);
+}
+function stopSims(){if(raf)cancelAnimationFrame(raf);raf=null;}
+hud();
+</script>
+
+</body></html>

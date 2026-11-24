@@ -1,0 +1,1583 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Colony Siege</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Atkinson+Hyperlegible:wght@400;700&display=swap">
+<style>
+/* Layout: one-screen battle app. HUD strip on top, a square battlefield (stained tissue seen down a microscope), action tray below. Menus slide over the battlefield. Single committed dark "microscope field" look. */
+:root {
+  --bg: #0f0b18;
+  --panel: #1b1430;
+  --panel-2: #261d42;
+  --line: #3b2f5a;
+  --fg: #f4effd;
+  --muted: #aa9dc9;
+  --violet: #9b6bff;   /* crystal violet: gram-positive */
+  --safranin: #ff6f9a; /* safranin: gram-negative */
+  --gold: #ffc145;
+  --good: #5fe0a0;
+  --bad: #ff6b5e;
+  --cyan: #4fd8ff;
+  --f-display: "Lilita One", "Arial Rounded MT Bold", "Arial Black", system-ui, sans-serif;
+  --f-body: "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { height: 100%; margin: 0; }
+body {
+  background: var(--bg); color: var(--fg); font-family: var(--f-body); font-size: 15px; line-height: 1.45;
+  background-image: radial-gradient(circle at 50% 40%, #241840 0, transparent 60%);
+  padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px);
+  user-select: none; -webkit-user-select: none; overflow: hidden;
+}
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+h1, h2, h3 { font-family: var(--f-display); font-weight: 400; margin: 0; line-height: 1.05; letter-spacing: .01em; text-wrap: balance; }
+p { margin: 0; }
+
+.app { height: 100%; display: flex; flex-direction: column; }
+.top {
+  display: flex; align-items: center; gap: 8px 14px; flex-wrap: wrap; justify-content: space-between;
+  padding: 7px max(12px, env(safe-area-inset-right, 0px)) 7px max(12px, env(safe-area-inset-left, 0px));
+  border-bottom: 1px solid var(--line); background: linear-gradient(180deg, #221a3b, var(--panel)); position: relative;
+}
+.brand { font-family: var(--f-display); font-size: 1.3rem; text-shadow: 0 2px 0 #0007; }
+.brand span { color: var(--violet); }
+.vsbadge { font-size: .78rem; font-weight: 700; padding: 3px 10px; border-radius: 999px; background: #ff6f9a26; color: #ffb3c8; border: 1px solid #ff6f9a55; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vsbadge.atk { background: #4fd8ff22; color: #a8ecff; border-color: #4fd8ff55; }
+.hud { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; font-variant-numeric: tabular-nums; }
+.hud > div { display: grid; line-height: 1.1; }
+.hud small { font-size: .64rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.hud b { font-size: 1rem; }
+.stars { color: #3b2f5a; font-size: 1.15rem; letter-spacing: 2px; }
+.stars .on { color: var(--gold); text-shadow: 0 0 10px #ffc14588; }
+.flora { width: 74px; height: 8px; border-radius: 4px; background: var(--panel-2); overflow: hidden; margin-top: 3px; }
+.flora i { display: block; height: 100%; background: var(--good); transition: width .3s, background .3s; }
+.timebar { position: absolute; left: 0; right: 0; bottom: -1px; height: 3px; }
+.timebar i { display: block; height: 100%; background: linear-gradient(90deg, var(--gold), var(--bad)); transition: width .25s linear; }
+.net { font-size: .72rem; color: var(--gold); }
+
+.main { flex: 1; min-height: 0; position: relative; display: flex; flex-direction: column; }
+.stage { flex: 1; min-height: 0; display: grid; place-items: center; padding: 8px; position: relative; }
+#cv { display: block; border-radius: 16px; touch-action: none; cursor: crosshair; box-shadow: 0 0 0 1px #6a55a0, 0 0 0 8px #0b0813, 0 0 0 9px #3b2f5a, 0 20px 50px -10px #000c; }
+.banner { position: absolute; top: 18px; left: 50%; transform: translateX(-50%); background: #0f0b18e6; border: 1px solid var(--line); border-radius: 999px; padding: 5px 14px; font-size: .85rem; font-weight: 700; pointer-events: none; white-space: nowrap; max-width: 92%; overflow: hidden; text-overflow: ellipsis; }
+.tray {
+  display: flex; gap: 8px; overflow-x: auto; align-items: stretch; padding: 10px max(12px, env(safe-area-inset-right, 0px)) 10px max(12px, env(safe-area-inset-left, 0px));
+  border-top: 1px solid var(--line); background: linear-gradient(0deg, #150f26, var(--panel)); scrollbar-width: thin; min-height: 80px;
+}
+.tbtn {
+  flex: none; min-width: 84px; display: grid; justify-items: center; align-content: center; gap: 3px; padding: 6px 9px; position: relative;
+  border: 2px solid var(--line); border-radius: 13px; background: linear-gradient(180deg, #2c2249, var(--panel-2)); box-shadow: 0 3px 0 #0b0813;
+}
+.tbtn .pill { width: 34px; height: 14px; border-radius: 7px; border: 2px solid #0c0814; box-shadow: inset 0 3px 0 #ffffff55; }
+.tbtn b { font-size: .8rem; }
+.tbtn small { font-size: .72rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.tbtn .count { position: absolute; top: -7px; right: -7px; background: var(--gold); color: #1c1206; font-weight: 700; font-size: .72rem; min-width: 22px; height: 22px; border-radius: 11px; display: grid; place-items: center; padding: 0 5px; box-shadow: 0 2px 0 #0008; }
+.tbtn[aria-pressed="true"] { border-color: var(--gold); background: linear-gradient(180deg, #4a3a1a, #2c2249); }
+.tbtn:disabled { opacity: .35; cursor: default; }
+.tbtn.big { min-width: 180px; }
+.tbtn.power { border-color: #ff6f9a; background: linear-gradient(180deg, #5a2140, #2c1630); }
+.tbtn.power b { font-family: var(--f-display); font-weight: 400; font-size: 1.05rem; }
+.tbtn.go { border-color: var(--good); background: linear-gradient(180deg, #1f5a3e, #173326); }
+.tray-note { align-self: center; color: var(--muted); font-size: .85rem; padding-left: 4px; white-space: nowrap; }
+.budget { align-self: center; display: grid; gap: 4px; min-width: 120px; font-size: .8rem; color: var(--muted); }
+.budget b { color: var(--fg); font-variant-numeric: tabular-nums; }
+.budget .bar { height: 8px; border-radius: 4px; background: var(--panel-2); overflow: hidden; }
+.budget .bar i { display: block; height: 100%; background: var(--gold); }
+@media (max-width: 560px) { .tray-note { display: none; } }
+
+/* Screens */
+.screen { position: absolute; inset: 0; overflow-y: auto; background: rgba(15, 11, 24, .93); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); z-index: 5; }
+.inner { max-width: 840px; margin: 0 auto; padding: 22px max(16px, env(safe-area-inset-right, 0px)) 40px max(16px, env(safe-area-inset-left, 0px)); display: grid; gap: 18px; }
+.kicker { font-size: .72rem; letter-spacing: .14em; text-transform: uppercase; color: var(--gold); font-weight: 700; }
+.big-title { font-size: clamp(2.4rem, 9vw, 4rem); text-shadow: 0 4px 0 #0008; }
+.big-title span { color: var(--violet); }
+.lead { color: var(--muted); max-width: 62ch; }
+.modes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 560px) { .modes { grid-template-columns: minmax(0, 1fr); } }
+.modebtn { text-align: left; border: 2px solid var(--line); border-radius: 16px; padding: 14px; display: grid; gap: 4px; background: linear-gradient(160deg, #2a2048, var(--panel)); }
+.modebtn:hover { border-color: var(--muted); }
+.modebtn b { font-family: var(--f-display); font-weight: 400; font-size: 1.4rem; }
+.modebtn span { color: var(--muted); font-size: .9rem; }
+.modebtn.vs { background: linear-gradient(160deg, #4a1d3a, #1d1630); border-color: #ff6f9a66; }
+.how { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.how div { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px; font-size: .9rem; color: var(--muted); }
+.how b { display: block; color: var(--fg); font-family: var(--f-display); font-weight: 400; font-size: 1.05rem; margin-bottom: 2px; }
+@media (max-width: 620px) { .how { grid-template-columns: minmax(0, 1fr); } }
+
+.bases { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr)); gap: 12px; }
+.base-card { text-align: left; background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 0; display: grid; overflow: hidden; transition: transform .15s, border-color .15s; }
+.base-card:hover { border-color: var(--muted); transform: translateY(-2px); }
+.base-card canvas { width: 100%; height: auto; aspect-ratio: 2 / 1; display: block; max-width: 100%; }
+.base-card .bc { padding: 12px 14px; display: grid; gap: 5px; }
+.base-card .row1 { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.gram { font-size: .7rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; }
+.gram.pos { background: #9b6bff2e; color: #c6a8ff; }
+.gram.neg { background: #ff6f9a2e; color: #ffa5c0; }
+.gram.none { background: #a99cc62e; color: var(--muted); }
+.base-card h3 { font-size: 1.3rem; }
+.base-card p { color: var(--muted); font-size: .88rem; }
+.base-card .best { color: #3b2f5a; letter-spacing: 2px; }
+.base-card .best .on { color: var(--gold); }
+
+.case { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: grid; gap: 8px; }
+.case .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font-size: .78rem; padding: 3px 9px; border-radius: 6px; background: var(--panel-2); }
+.case .power { border-top: 1px dashed var(--line); padding-top: 8px; font-size: .92rem; }
+.case .power b { color: var(--safranin); }
+
+.cap { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; position: sticky; top: 0; z-index: 2; background: var(--bg); padding-block: 8px; border-bottom: 1px solid var(--line); }
+.cap-bar { flex: 1; min-width: 140px; height: 12px; border-radius: 6px; background: var(--panel-2); overflow: hidden; }
+.cap-bar i { display: block; height: 100%; background: var(--gold); transition: width .2s; }
+.cap b { font-variant-numeric: tabular-nums; }
+.drugs { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 250px), 1fr)); gap: 10px; }
+.drug { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 12px; display: grid; gap: 6px; align-content: start; }
+.drug .head { display: flex; align-items: center; gap: 10px; }
+.drug .pill { width: 30px; height: 13px; border-radius: 7px; border: 2px solid #0c0814; flex: none; box-shadow: inset 0 3px 0 #ffffff55; }
+.drug h3 { font-size: 1.12rem; }
+.drug .cls { font-size: .78rem; color: var(--muted); }
+.drug .cost { margin-left: auto; font-size: .78rem; color: var(--gold); font-weight: 700; white-space: nowrap; }
+.drug .line { font-size: .85rem; }
+.drug .pw b { color: var(--good); }
+.drug .ft b { color: var(--bad); }
+.step { display: flex; align-items: center; gap: 10px; margin-top: 4px; }
+.step button { width: 34px; height: 34px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel-2); font-size: 1.1rem; font-weight: 700; }
+.step button:disabled { opacity: .3; cursor: default; }
+.step b { min-width: 22px; text-align: center; font-variant-numeric: tabular-nums; font-size: 1.1rem; }
+
+.btn-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.cta { font-family: var(--f-display); font-size: 1.15rem; letter-spacing: .02em; background: var(--gold); color: #1c1206; border: 0; border-radius: 12px; padding: 11px 22px; box-shadow: 0 4px 0 #a5741a; }
+.cta:active { transform: translateY(2px); box-shadow: 0 2px 0 #a5741a; }
+.cta:disabled { background: var(--panel-2); color: var(--muted); box-shadow: none; cursor: default; }
+.ghost { font-weight: 700; background: transparent; border: 1px solid var(--line); border-radius: 12px; padding: 10px 16px; }
+.ghost:hover { border-color: var(--muted); }
+.field { display: flex; gap: 8px; flex-wrap: wrap; }
+.field input { background: var(--panel-2); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; font-size: 1.2rem; letter-spacing: .3em; text-transform: uppercase; width: 10ch; font-family: var(--f-display); user-select: text; -webkit-user-select: text; }
+.code { font-family: var(--f-display); font-size: clamp(2.6rem, 12vw, 4rem); letter-spacing: .25em; color: var(--gold); text-shadow: 0 0 24px #ffc14555; user-select: text; -webkit-user-select: text; }
+.panelbox { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: grid; gap: 10px; }
+.spin { width: 22px; height: 22px; border-radius: 50%; border: 3px solid var(--line); border-top-color: var(--gold); animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.note { font-size: .85rem; color: var(--muted); }
+.note b { color: var(--fg); }
+
+.result-stars { font-size: clamp(3rem, 12vw, 4.6rem); letter-spacing: 6px; color: #3b2f5a; line-height: 1; }
+.result-stars .on { color: var(--gold); text-shadow: 0 0 18px #ffc14566; }
+.pct { font-family: var(--f-display); font-size: 1.6rem; }
+.notes { display: grid; gap: 6px; }
+.notes div { background: var(--panel); border-left: 3px solid var(--bad); border-radius: 6px; padding: 8px 12px; font-size: .9rem; }
+.notes div.ok { border-left-color: var(--good); }
+.cov-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; }
+table { border-collapse: collapse; width: 100%; min-width: 520px; font-size: .9rem; }
+th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: .7rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); font-weight: 700; background: var(--panel); }
+tr:last-child td { border-bottom: 0; }
+.lvl { font-weight: 700; white-space: nowrap; }
+.lvl.s { color: var(--good); } .lvl.g { color: #b6e86b; } .lvl.w { color: var(--gold); } .lvl.n { color: var(--bad); }
+.firstline { background: #5fe0a01a; border: 1px solid #5fe0a055; border-radius: 12px; padding: 12px 14px; font-size: .93rem; }
+.firstline b { color: var(--good); }
+.score-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 520px) { .score-grid { grid-template-columns: minmax(0, 1fr); } }
+.pcard { background: var(--panel); border: 2px solid var(--line); border-radius: 16px; padding: 14px; display: grid; gap: 6px; }
+.pcard.win { border-color: var(--gold); box-shadow: 0 0 30px -8px #ffc14577; }
+.pcard .who { font-family: var(--f-display); font-size: 1.3rem; }
+.pcard .sub { font-size: .85rem; color: var(--muted); }
+.pcard .result-stars { font-size: 2.2rem; }
+.foot { color: var(--muted); font-size: .8rem; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top">
+    <div class="brand">Colony <span>Siege</span></div>
+    <span class="vsbadge" id="vsbadge" hidden></span>
+    <div class="hud" id="hud" hidden>
+      <div><small id="h-time-l">Time</small><b id="h-time">1:30</b></div>
+      <div><small>Destroyed</small><b id="h-pct">0%</b></div>
+      <div><small>Stars</small><span class="stars" id="h-stars"></span></div>
+      <div><small>Gut flora</small><div class="flora"><i id="h-flora"></i></div></div>
+    </div>
+    <span class="net" id="net" hidden>Reconnecting…</span>
+    <div class="timebar" id="timebar" hidden><i id="timebar-i"></i></div>
+  </div>
+
+  <div class="main">
+    <div class="stage" id="stage">
+      <canvas id="cv" aria-label="Battlefield"></canvas>
+      <div class="banner" id="banner" hidden></div>
+    </div>
+    <div class="tray" id="tray"></div>
+
+    <!-- MENU -->
+    <section class="screen" id="s-menu">
+      <div class="inner">
+        <span class="kicker">Antibiotic strategy</span>
+        <h1 class="big-title">Colony <span>Siege</span></h1>
+        <p class="lead">Your antibiotics attack a bacterial colony. Every drug has a power that comes from how it works and a fault that comes from its real adverse effects. Every bacterium defends itself the way its class really does.</p>
+        <div class="modes" hidden>
+          <button class="modebtn" type="button" id="m-solo"><b>Solo</b><span>Six infections. Earn three stars on each.</span></button>
+          <button class="modebtn vs" type="button" id="m-vs"><b>Versus</b><span>One of you builds a colony, the other attacks it. Then swap.</span></button>
+        </div>
+        <div class="how">
+          <div><b>1 · Prescribe</b>Read the case and fill 20 slots with the antibiotics you think will cover it.</div>
+          <div><b>2 · Deploy</b>Pick a drug in the tray, then tap outside the dashed circle to send it in.</div>
+          <div><b>3 · Earn stars</b>One star for 50% destroyed, one for the colony core, one for wiping it out.</div>
+        </div>
+        <span class="kicker" style="color:var(--muted)">Choose an infection</span>
+        <div class="bases" id="bases"></div>
+        <p class="foot">Coverage and adverse effects are simplified. For educational purposes only. Not clinical advice.</p>
+      </div>
+    </section>
+
+    <!-- PRESCRIBE -->
+    <section class="screen" id="s-rx" hidden>
+      <div class="inner">
+        <div class="btn-row"><button class="ghost" id="rx-back" type="button">← Infections</button><span class="note" id="rx-note"></span></div>
+        <div class="case" id="rx-case"></div>
+        <div class="cap"><span>Slots</span><div class="cap-bar"><i id="cap-i"></i></div><b id="cap-n">0 / 20</b><button class="cta" id="go" type="button" disabled>Start attack</button></div>
+        <div class="drugs" id="drugs"></div>
+      </div>
+    </section>
+
+    <!-- SOLO RESULT -->
+    <section class="screen" id="s-end" hidden>
+      <div class="inner">
+        <span class="kicker" id="e-kicker"></span>
+        <div class="result-stars" id="e-stars"></div>
+        <div><div class="pct" id="e-pct"></div><p class="lead" id="e-line"></p></div>
+        <div class="btn-row"><button class="cta" id="e-retry" type="button">Change prescription</button><button class="ghost" id="e-menu" type="button">Pick another infection</button></div>
+        <div class="notes" id="e-notes"></div>
+        <div class="firstline" id="e-first"></div>
+        <span class="kicker" style="color:var(--muted)">How each drug matched up</span>
+        <div class="cov-wrap"><table><thead><tr><th>Antibiotic</th><th>Coverage</th><th>Why</th></tr></thead><tbody id="e-cov"></tbody></table></div>
+      </div>
+    </section>
+
+    <!-- VERSUS LOBBY -->
+    <section class="screen" id="s-lobby" hidden>
+      <div class="inner">
+        <div class="btn-row"><button class="ghost" id="lb-back" type="button">← Menu</button></div>
+        <span class="kicker">Versus</span>
+        <h2 style="font-size:2.2rem">Colony vs. antibiotics</h2>
+        <p class="lead">Two rounds. In round one the host picks an infection and builds its colony while the other player prescribes and attacks. In round two you swap. The defender can fire a live power twice during the attack. Most stars wins; ties go to more destruction, then the faster attack.</p>
+        <div id="lb-unavail" class="panelbox" hidden>
+          <b>Versus needs the full Colony Siege page.</b>
+          <p class="note" id="lb-unavail-txt"></p>
+          <div class="btn-row" id="lb-standalone"></div>
+        </div>
+        <div id="lb-ready" hidden style="display:grid;gap:14px">
+          <div class="panelbox">
+            <b>Start a match</b>
+            <p class="note">You'll get a code to send to your opponent. You defend first.</p>
+            <div class="btn-row"><button class="cta" id="lb-create" type="button">Create match</button></div>
+          </div>
+          <div class="panelbox">
+            <b>Join a match</b>
+            <div class="field"><input id="lb-code" maxlength="5" autocomplete="off" spellcheck="false" placeholder="CODE" aria-label="Match code"><button class="cta" id="lb-join" type="button">Join</button></div>
+            <p class="note" id="lb-err"></p>
+          </div>
+          <p class="note">Both players need to be signed in to Claude with access to this page. Add your opponent from the Share menu first.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- VERSUS WAIT -->
+    <section class="screen" id="s-wait" hidden>
+      <div class="inner">
+        <span class="kicker">Versus</span>
+        <div id="w-code-box" hidden><p class="note">Send this code to your opponent</p><div class="code" id="w-code"></div></div>
+        <div class="btn-row"><div class="spin"></div><h2 style="font-size:1.6rem" id="w-title">Waiting…</h2></div>
+        <p class="lead" id="w-txt"></p>
+        <div class="btn-row"><button class="ghost" id="w-leave" type="button">Leave match</button></div>
+      </div>
+    </section>
+
+    <!-- VERSUS PICK INFECTION (defender) -->
+    <section class="screen" id="s-pick" hidden>
+      <div class="inner">
+        <span class="kicker" id="pk-k">Round 1 · You defend</span>
+        <h2 style="font-size:2rem">Choose your infection</h2>
+        <p class="lead">Your opponent sees the case and picks antibiotics against it while you build the colony with 70 colony points. Each infection keeps its real resistance tricks and adds a live power you can fire twice during the attack.</p>
+        <div class="bases" id="pk-bases"></div>
+      </div>
+    </section>
+
+    <!-- VERSUS ROUND RESULT -->
+    <section class="screen" id="s-round" hidden>
+      <div class="inner">
+        <span class="kicker" id="r-k"></span>
+        <h2 style="font-size:2rem" id="r-title"></h2>
+        <div class="result-stars" id="r-stars"></div>
+        <p class="pct" id="r-pct"></p>
+        <div class="btn-row"><button class="cta" id="r-cont" type="button">Continue</button><span class="note" id="r-wait"></span></div>
+        <div class="firstline" id="r-first"></div>
+        <div class="cov-wrap"><table><thead><tr><th>Antibiotic</th><th>Coverage</th><th>Why</th></tr></thead><tbody id="r-cov"></tbody></table></div>
+      </div>
+    </section>
+
+    <!-- VERSUS FINAL -->
+    <section class="screen" id="s-final" hidden>
+      <div class="inner">
+        <span class="kicker">Versus · final</span>
+        <h2 style="font-size:2.4rem" id="f-title"></h2>
+        <div class="score-grid" id="f-grid"></div>
+        <div class="btn-row"><button class="cta" id="f-rematch" type="button">Rematch</button><button class="ghost" id="f-leave" type="button">Leave</button><span class="note" id="f-note"></span></div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>
+(() => {
+const $ = s => document.querySelector(s);
+const TAU = Math.PI * 2;
+const TEST = /cstest/.test(location.search);
+const W = 600, CX = 300, CY = 300, NO_DEPLOY = 212, BUILD_R = NO_DEPLOY - 18, CAPACITY = 20, BATTLE_TIME = TEST ? 30 : 90, BUILD_TIME = 120, BUDGET = 70;
+const STANDALONE_URL = 'https://claude.ai/artifact/3RyMXD3HJpvU82ogHR4Pjs';
+
+/* ================= Antibiotics (your troops) ================= */
+const DRUGS = {
+  amox:   { name: 'Amoxicillin', cls: 'Penicillin · β-lactam', cost: 1, hp: 140, spd: 58, range: 12, dmg: 30, rate: .8, col: '#ff9f43', tag: 'AMX', bl: true, bli: false, flora: 4,
+            power: 'Bactericidal burst', powerTxt: 'Every 3rd hit does double damage.',
+            fault: 'Rash', faultTxt: 'About 1 in 8 has a hypersensitivity reaction: it stops and loses most of its HP.' },
+  vanc:   { name: 'Vancomycin', cls: 'Glycopeptide', cost: 4, hp: 620, spd: 34, range: 14, dmg: 70, rate: 1, col: '#4fc3f7', tag: 'VAN', flora: 3,
+            power: 'Tank', powerTxt: 'Huge HP. Goes after defenses first and soaks up their fire.',
+            fault: 'Infusion reaction', faultTxt: 'Deploy two within 3 seconds and both flush and freeze. Infuse slowly.' },
+  cipro:  { name: 'Ciprofloxacin', cls: 'Fluoroquinolone', cost: 2, hp: 150, spd: 62, range: 85, dmg: 29, rate: .9, col: '#9be15d', tag: 'CIP', flora: 9, efflux: true,
+            power: 'Gyrase strike', powerTxt: 'Ranged. Each hit jumps to a second target nearby.',
+            fault: 'Tendon rupture', faultTxt: 'After a few seconds on the field it may go lame and barely move.' },
+  azithro:{ name: 'Azithromycin', cls: 'Macrolide', cost: 2, hp: 140, spd: 50, range: 115, dmg: 26, rate: 1, col: '#ffe066', tag: 'AZM', flora: 5, efflux: true,
+            power: 'Tissue depot', powerTxt: 'Longest range. When it falls, it keeps hitting nearby cells for 6 seconds.',
+            fault: 'QT prolongation', faultTxt: 'Skips every 5th beat. With cipro on the field, it can freeze in torsades.' },
+  doxy:   { name: 'Doxycycline', cls: 'Tetracycline', cost: 2, hp: 170, spd: 48, range: 70, dmg: 28, rate: 1, col: '#e6e1f5', tag: 'DOX', flora: 5, efflux: true,
+            power: 'Bacteriostatic hold', powerTxt: 'Ranged. Hit targets stop regrowing and defenses fire half as fast for 3 seconds.',
+            fault: 'Photosensitivity', faultTxt: 'Loses HP while standing in the drifting sunbeams.' },
+  piptazo:{ name: 'Piperacillin-tazobactam', short: 'Pip-tazo', cls: 'β-lactam + β-lactamase inhibitor', cost: 3, hp: 330, spd: 44, range: 18, dmg: 52, rate: 1.1, col: '#2ee6d6', tag: 'PTZ', bl: true, bli: true, flora: 22,
+            power: 'Broad splash', powerTxt: 'Hits everything near its target. Tazobactam shields it from β-lactamase.',
+            fault: 'Gut flora wipeout', faultTxt: 'Each one burns 22% of the gut flora. At 0%, C. diff moves in and attacks your troops.' },
+};
+const ORDER = ['amox', 'vanc', 'cipro', 'azithro', 'doxy', 'piptazo'];
+
+/* ================= Bacteria (the bases) ================= */
+const BASES = [
+  { id: 'strep', name: 'Strep throat', bug: 'Streptococcus pyogenes', gram: 'pos', gramTxt: 'Gram-positive cocci in chains', shape: 'chain', col: '#9b6bff', bg: ['#5a2846', '#2a1222'], motif: 'mucosa',
+    case: 'A 16-year-old with fever, tender neck nodes, tonsillar exudate, and no cough. Rapid strep test is positive.',
+    clues: ['Throat', 'Thick peptidoglycan wall', 'No outer membrane'],
+    power: 'Streptolysin O', powerTxt: 'Its toxin towers splash every troop near their target.',
+    vpower: 'Toxin burst', vpowerTxt: 'Every toxin tower fires a double-strength splash at once.',
+    toxin: 'Streptolysin O', flora: 100,
+    cov: { amox: [1.3, 'Penicillin-susceptible. Penicillin or amoxicillin is first-line.'], vanc: [1, 'Covers gram-positives, but far too much for strep throat.'],
+           cipro: [.35, 'Weak strep coverage.'], azithro: [.8, 'Works for penicillin allergy, but macrolide resistance is common.'],
+           doxy: [.3, 'Unreliable against group A strep.'], piptazo: [1, 'Works, but much broader than needed.'] },
+    first: 'Penicillin V or amoxicillin for 10 days. With a penicillin allergy: cephalexin (low-risk allergy), or azithromycin or clindamycin.' },
+  { id: 'mrsa', name: 'MRSA skin abscess', bug: 'Staphylococcus aureus (MRSA)', gram: 'pos', gramTxt: 'Gram-positive cocci in clusters', shape: 'cluster', col: '#9b6bff', bg: ['#5c3424', '#2b1810'], motif: 'skin',
+    case: 'A painful, fluctuant boil on the thigh with surrounding redness. Drainage culture grows MRSA.',
+    clues: ['Skin', 'mecA gene', 'Makes PBP2a'],
+    power: 'Abscess wall + PBP2a', powerTxt: 'The core sits inside a ring of pus, and β-lactams can’t bind its altered PBP2a.',
+    vpower: 'Reseal abscess', vpowerTxt: 'Every wall, standing or broken, regrows to full strength.',
+    toxin: 'PVL toxin', flora: 100,
+    cov: { amox: [0, 'PBP2a: β-lactams can’t bind, so they do nothing.'], vanc: [1.3, 'Drug of choice for serious MRSA infections.'],
+           cipro: [.2, 'MRSA is often resistant to fluoroquinolones.'], azithro: [.1, 'MRSA is usually macrolide-resistant.'],
+           doxy: [1.1, 'Good oral option for MRSA skin infections.'], piptazo: [0, 'PBP2a: β-lactams can’t bind, even with tazobactam.'] },
+    first: 'Incision and drainage first. If antibiotics are needed: TMP-SMX or doxycycline by mouth, or vancomycin IV for severe infection.' },
+  { id: 'ecoli', name: 'Bladder infection', bug: 'Escherichia coli', gram: 'neg', gramTxt: 'Gram-negative rods', shape: 'rod', col: '#ff6f9a', bg: ['#5a4a22', '#2a2112'], motif: 'urothelium', special: 'blact',
+    case: 'A 28-year-old with burning on urination and frequency, no fever or flank pain. Urine grows E. coli that makes β-lactamase.',
+    clues: ['Bladder', 'Outer membrane', 'β-lactamase producer'],
+    power: 'β-lactamase + fimbriae', powerTxt: 'One tower destroys plain β-lactams, and cells heal while their fimbriae hold on.',
+    vpower: 'β-lactamase surge', vpowerTxt: 'Every unprotected β-lactam on the field loses most of its HP.',
+    toxin: 'Hemolysin', flora: 100,
+    cov: { amox: [.35, 'Would work, but this strain’s β-lactamase destroys it.'], vanc: [0, 'Too big to cross the gram-negative outer membrane.'],
+           cipro: [1.2, 'Works, but fluoroquinolones are saved for when other options fail.'], azithro: [.1, 'Not active against E. coli.'],
+           doxy: [.3, 'Unreliable against E. coli.'], piptazo: [1.2, 'Works, but far too broad for a simple bladder infection.'] },
+    first: 'Uncomplicated cystitis: nitrofurantoin, TMP-SMX (if local resistance is low), fosfomycin, or pivmecillinam. Fluoroquinolones are not first-line.' },
+  { id: 'myco', name: 'Walking pneumonia', bug: 'Mycoplasma pneumoniae', gram: 'none', gramTxt: 'No cell wall · won’t Gram stain', shape: 'blob', col: '#b9aedb', bg: ['#26385a', '#121b2c'], motif: 'alveoli',
+    case: 'A college student with a dry cough for two weeks and low fever, still going to class. Chest X-ray looks worse than they do.',
+    clues: ['Lungs', 'No cell wall', 'Atypical'],
+    power: 'No wall + fast division', powerTxt: 'Cell-wall drugs do nothing, and new cells keep budding off.',
+    vpower: 'Rapid division', vpowerTxt: 'Four new cells bud off at once.',
+    toxin: 'CARDS toxin', flora: 100,
+    cov: { amox: [0, 'No cell wall for a β-lactam to attack.'], vanc: [0, 'No cell wall for vancomycin to attack.'],
+           cipro: [.6, 'Some activity. Levofloxacin or moxifloxacin are the respiratory fluoroquinolones.'], azithro: [1.4, 'First-line for atypical pneumonia.'],
+           doxy: [1.2, 'Good atypical coverage.'], piptazo: [0, 'No cell wall for a β-lactam to attack.'] },
+    first: 'Azithromycin or doxycycline. A respiratory fluoroquinolone (levofloxacin, moxifloxacin) is an alternative.' },
+  { id: 'pseudo', name: 'Burn wound infection', bug: 'Pseudomonas aeruginosa', gram: 'neg', gramTxt: 'Gram-negative rods', shape: 'flag', col: '#ff6f9a', bg: ['#1f4a44', '#0f2422'], motif: 'burn', special: 'efflux',
+    case: 'A burn patient whose dressing has blue-green drainage with a sweet, grape-like smell. Culture grows Pseudomonas.',
+    clues: ['Burn wound', 'Biofilm former', 'Efflux pumps'],
+    power: 'Biofilm + efflux pumps', powerTxt: 'Its biofilm walls regrow, and a pump tower halves cipro, doxy and azithro damage nearby.',
+    vpower: 'Biofilm surge', vpowerTxt: 'Standing walls heal to full and efflux pumps reach much farther for 8 seconds.',
+    toxin: 'Pyocyanin', flora: 100,
+    cov: { amox: [0, 'Pseudomonas is intrinsically resistant.'], vanc: [0, 'Too big to cross the gram-negative outer membrane.'],
+           cipro: [1.1, 'An antipseudomonal fluoroquinolone (like levofloxacin), though efflux pumps fight back.'], azithro: [0, 'Not antipseudomonal.'],
+           doxy: [0, 'Not antipseudomonal.'], piptazo: [1.3, 'Antipseudomonal β-lactam.'] },
+    first: 'An antipseudomonal agent based on susceptibilities: piperacillin-tazobactam, cefepime, ceftazidime, a carbapenem, or ciprofloxacin/levofloxacin.' },
+  { id: 'cdiff', name: 'C. diff colitis', bug: 'Clostridioides difficile', gram: 'pos', gramTxt: 'Gram-positive spore-forming rods', shape: 'spore', col: '#9b6bff', bg: ['#4a3a22', '#221a10'], motif: 'crypts',
+    case: 'Watery diarrhea four times a day, starting a week after a course of clindamycin. Stool test is positive for C. diff toxin.',
+    clues: ['Colon', 'Spore former', 'Toxins A and B'],
+    power: 'Spores', powerTxt: 'Killed cells leave a spore that sprouts once more. Gut flora starts at 40% after the clindamycin.',
+    vpower: 'Sporulate', vpowerTxt: 'Every living cell hides inside a spore coat for 4 seconds and takes no damage.',
+    toxin: 'Toxin A', toxin2: 'Toxin B', flora: 40,
+    cov: { amox: [0, 'Doesn’t treat C. diff, and can trigger it.'], vanc: [1.3, 'First-line, but only by mouth. IV vancomycin doesn’t reach the colon.'],
+           cipro: [0, 'Fluoroquinolones are a common trigger of C. diff.'], azithro: [0, 'Not active against C. diff.'],
+           doxy: [0, 'Not a C. diff treatment.'], piptazo: [.1, 'Not a treatment, and broad agents drive C. diff.'] },
+    first: 'Fidaxomicin (preferred) or oral vancomycin. Stop the antibiotic that triggered it if you can.' },
+];
+const baseById = id => BASES.find(b => b.id === id) || BASES[0];
+
+/* ================= Helpers ================= */
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+};
+let bests = store.get('colonySiegeBests', {});
+function rng(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const polar = (r, deg) => [CX + r * Math.cos(deg * Math.PI / 180), CY + r * Math.sin(deg * Math.PI / 180)];
+const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+function hexRgb(h) { const n = parseInt(h.slice(1), 16); return [n >> 16, (n >> 8) & 255, n & 255]; }
+function mix(h, to, a) { const p = hexRgb(h), q = hexRgb(to); return `rgb(${p.map((v, i) => Math.round(v + (q[i] - v) * a)).join(',')})`; }
+const light = (h, a) => mix(h, '#ffffff', a), dark = (h, a) => mix(h, '#000000', a);
+function rgba(h, a) { const p = hexRgb(h); return `rgba(${p[0]},${p[1]},${p[2]},${a})`; }
+const starStr = n => [0, 1, 2].map(i => i < n ? '<span class="on">★</span>' : '★').join('');
+const fmtTime = s => { s = Math.max(0, Math.ceil(s)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+
+/* ================= Layouts ================= */
+// layout entry: [type, x, y]  type 0 core · 1 cell · 2 toxin tower · 3 special tower · 4 wall
+const COST = { 1: 2, 2: 6, 3: 8, 4: 1 };
+const LIMIT = { 2: 3, 3: 1 };
+function ringPts(n, r, start) { const out = []; for (let i = 0; i < n; i++) out.push(polar(r, start + i * 360 / n)); return out; }
+function wallRingPts(r, skip = () => false) { const n = Math.round(2 * Math.PI * r / 19), out = []; for (let i = 0; i < n; i++) { const a = i * 360 / n; if (!skip(a)) out.push(polar(r, a)); } return out; }
+function classicLayout(b) {
+  const L = [[0, CX, CY]];
+  const add = (t, pts) => pts.forEach(([x, y]) => L.push([t, Math.round(x), Math.round(y)]));
+  switch (b.id) {
+    case 'strep':
+      ringPts(6, 152, 0).forEach(([x, y], i) => { const t = (i * 60 + 90) * Math.PI / 180; [-30, 0, 30].forEach(o => L.push([1, Math.round(x + Math.cos(t) * o), Math.round(y + Math.sin(t) * o)])); });
+      add(1, ringPts(4, 64, 0)); add(2, [polar(104, 30), polar(104, 210)]); break;
+    case 'mrsa':
+      add(4, wallRingPts(64));
+      ringPts(5, 140, 0).forEach(([x, y]) => [[0, -14], [-13, 9], [13, 9]].forEach(([dx, dy]) => L.push([1, Math.round(x + dx), Math.round(y + dy)])));
+      add(2, [polar(102, 108), polar(102, 252)]); break;
+    case 'ecoli':
+      add(1, ringPts(6, 92, 0)); add(1, ringPts(8, 158, 22.5)); add(3, [polar(126, 45)]); add(2, [polar(126, 225)]); break;
+    case 'myco':
+      add(1, ringPts(7, 80, 10)); add(1, ringPts(10, 145, 0)); add(2, [polar(112, 18), polar(112, 198)]); break;
+    case 'pseudo':
+      add(1, ringPts(6, 84, 30)); add(1, ringPts(6, 140, 0)); add(3, [polar(118, 30)]); add(2, [polar(118, 210)]);
+      add(4, wallRingPts(178, a => (a > 75 && a < 105) || (a > 255 && a < 285))); break;
+    case 'cdiff':
+      add(1, ringPts(6, 88, 0)); add(1, ringPts(8, 152, 22.5)); add(2, [polar(124, 45), polar(124, 225)]); break;
+  }
+  return L;
+}
+const layoutCost = L => L.reduce((s, e) => s + (COST[e[0]] || 0), 0);
+function autoLayout(b) {
+  const L = classicLayout(b).slice();
+  let flip = 0;
+  while (layoutCost(L) > BUDGET) {
+    const walls = L.map((e, i) => e[0] === 4 ? i : -1).filter(i => i >= 0);
+    if (walls.length > 6) { L.splice(walls[(flip++ * 2) % walls.length], 1); continue; }
+    const cells = L.map((e, i) => e[0] === 1 ? i : -1).filter(i => i >= 0);
+    if (cells.length > 4) { L.splice(cells[cells.length - 1], 1); continue; }
+    break;
+  }
+  return L;
+}
+function cellStats(b) { return b.id === 'strep' ? [13, 330] : b.id === 'mrsa' ? [12, 300] : b.id === 'myco' ? [11, 230] : [15, 380]; }
+function mkB(base, t, x, y, i, hpOverride) {
+  const R = rng(i * 7919 + Math.round(x) * 31 + Math.round(y) * 17 + 5);
+  const o = { idx: i, t, x, y, alive: true, staticT: 0, dormT: 0, hitT: 0, flash: 0, cool: R(), phase: R() * TAU, ang: Math.atan2(y - CY, x - CX) + Math.PI / 2 };
+  if (t === 0) Object.assign(o, { type: 'core', r: 34, hp: 1800 });
+  else if (t === 1) { const [r, hp] = cellStats(base); Object.assign(o, { type: 'cell', r, hp }); }
+  else if (t === 2) Object.assign(o, { type: 'turret', kind: 'toxin', name: base.toxin2 && i % 2 ? base.toxin2 : base.toxin, r: 19, hp: 650, range: 130, shot: base.id === 'strep' ? 36 : 42, splash: base.id === 'strep' ? 28 : 0, every: 1 });
+  else if (t === 3) { if (base.special === 'blact') Object.assign(o, { type: 'turret', kind: 'blact', name: 'β-lactamase', r: 19, hp: 650, range: 150, shot: 26, every: 1 });
+    else Object.assign(o, { type: 'turret', kind: 'efflux', name: 'Efflux pump', r: 19, hp: 650, range: 130, shot: 24, aura: 125, every: 1 }); }
+  else Object.assign(o, { type: 'wall', r: 10, hp: base.id === 'mrsa' ? 300 : base.id === 'pseudo' ? 220 : 260 });
+  if (hpOverride) o.hp = hpOverride;
+  o.max = o.hp;
+  return o;
+}
+const makeBuildings = (base, L) => L.map(([t, x, y], i) => mkB(base, t, x, y, i));
+
+/* ================= Simulation ================= */
+class Sim {
+  constructor(base, layout, army, opts = {}) {
+    this.base = base; this.layout = layout; this.bld = makeBuildings(base, layout);
+    this.army = Object.assign({}, army); this.remaining = Object.assign({}, army);
+    this.troops = []; this.shots = []; this.zones = []; this.cdCloud = null; this.flora = base.flora; this.timeLeft = BATTLE_TIME;
+    this.clock = 0; this.deployed = !!opts.timerNow; this.lastVanc = -99; this.log = {}; this.reasonShown = {}; this.coreDown = false;
+    this.total = this.bld.filter(b => b.type !== 'wall').length; this.destroyed = 0; this.replT = 0; this.endT = 0; this.over = false;
+    this.ev = []; this.seq = 0; this.tid = 0; this.extra = []; this.pwApplied = 0; this.effluxBoostT = 0; this.sunOn = !!army.doxy;
+    this.onEvent = null; this.onEnd = null;
+  }
+  emit(kind, ...a) { this.ev.push([++this.seq, kind, ...a]); if (this.ev.length > 60) this.ev.splice(0, this.ev.length - 60); if (this.onEvent) this.onEvent(kind, a); }
+  float(x, y, txt, col = '#ffffff') { this.emit('f', Math.round(x), Math.round(y), String(txt).slice(0, 44), col); }
+  note(k) { this.log[k] = (this.log[k] || 0) + 1; }
+  live() { return this.bld.filter(b => b.alive); }
+  troopById(id) { return this.troops.find(t => t.id === id && t.alive); }
+  pct() { return Math.round(this.destroyed / this.total * 100); }
+  stars() { const p = this.destroyed / this.total; return (p >= .5 ? 1 : 0) + (this.coreDown ? 1 : 0) + (p >= 1 ? 1 : 0); }
+  inSun(x, y) { if (!this.sunOn) return false; for (let i = 0; i < 2; i++) { const p = sunPos(this.clock, i); if (Math.abs(x - (p + y * .5)) < 32) return true; } return false; }
+  addBuilding(t, x, y, hp, extra = {}) {
+    const i = this.bld.length; const nb = mkB(this.base, t, x, y, i, hp); Object.assign(nb, extra);
+    this.bld.push(nb); this.extra.push([t, Math.round(x), Math.round(y), hp || 0]); if (t !== 4) this.total++;
+    return nb;
+  }
+  deploy(k, x, y) {
+    if (!this.remaining[k]) return false;
+    const d = DRUGS[k];
+    const t = { id: ++this.tid, k, d, x, y, hp: d.hp, max: d.hp, alive: true, cool: .2, stun: 0, hits: 0, beats: 0, age: 0, lame: false, flush: 0, rash: false, sun: false, head: Math.atan2(CY - y, CX - x), target: null, block: null, born: this.clock };
+    this.remaining[k]--; this.deployed = true;
+    this.emit('d', Math.round(x), Math.round(y), ORDER.indexOf(k));
+    if (k === 'amox' && Math.random() < .125) { t.rash = true; t.stun = 2.5; t.hp *= .4; this.float(x, y - 16, 'Rash!', '#ff6b5e'); this.note('rash'); }
+    if (k === 'vanc') {
+      if (this.clock - this.lastVanc < 3) {
+        this.troops.filter(o => o.alive && o.k === 'vanc' && this.clock - o.born < 3).concat([t]).forEach(o => { o.stun = 3; o.flush = 3; });
+        this.float(x, y - 16, 'Infusion reaction! Infuse slower', '#ff6b5e'); this.note('flush');
+      }
+      this.lastVanc = this.clock;
+    }
+    this.troops.push(t);
+    const before = this.flora; this.flora -= d.flora;
+    if (this.flora <= 0 && before > 0 && !this.cdCloud) {
+      this.cdCloud = { x: CX + (Math.random() - .5) * 300, y: W - 60, vx: 22, vy: -18 };
+      this.float(this.cdCloud.x, this.cdCloud.y - 40, 'Gut flora gone · C. diff overgrowth!', '#ff6b5e'); this.note('cdiff');
+    }
+    return true;
+  }
+  hitBuilding(b, amt, t, primary) {
+    const cov = this.base.cov[t.k][0];
+    if (b.dormT > 0 && b.type === 'cell') { if (primary && Math.random() < .25) this.float(b.x, b.y - 20, 'Spore coat', '#c6a8ff'); return; }
+    let m = b.type === 'wall' ? (cov > 0 ? 1 : .15) : cov;
+    if (t.d.efflux && this.bld.some(o => o.alive && o.kind === 'efflux' && dist(o, t) < o.aura * (this.effluxBoostT > 0 ? 1.6 : 1))) { m *= .5; if (primary && Math.random() < .2) this.float(t.x, t.y - 18, 'Pumped out', '#ffa5c0'); }
+    if (primary && cov === 0 && b.type !== 'wall' && this.clock - (this.reasonShown[t.k] || -9) > 5) {
+      this.reasonShown[t.k] = this.clock; this.float(b.x, b.y - 28, this.base.cov[t.k][1].split('.')[0], '#ff6b5e');
+    }
+    if (amt * m > 0) { b.hp -= amt * m; b.hitT = .12; }
+    if (t.k === 'doxy') b.staticT = 3;
+    if (b.hp <= 0 && b.alive) this.destroy(b);
+  }
+  destroy(b) {
+    b.alive = false; this.emit('k', b.idx);
+    if (b.type !== 'wall') this.destroyed++;
+    if (b.type === 'core') { this.coreDown = true; this.float(b.x, b.y - 44, 'Colony core destroyed!', '#ffc145'); }
+    if (this.base.id === 'cdiff' && b.type === 'cell' && !b.spore) this.zones.push({ kind: 'spore', x: b.x, y: b.y, t: 7, ang: b.ang });
+  }
+  pickTarget(t) {
+    const L = this.live().filter(b => b.type !== 'wall');
+    let pool = L;
+    if (t.k === 'vanc') { const tur = L.filter(b => b.type === 'turret'); if (tur.length) pool = tur; }
+    let best = null, bd = 1e9;
+    for (const b of pool) { const dd = dist(t, b) - b.r; if (dd < bd) { bd = dd; best = b; } }
+    return best;
+  }
+  troopAttack(t, b) {
+    if (t.k === 'azithro') {
+      t.beats++;
+      if (t.beats % 5 === 0) { this.float(t.x, t.y - 16, '♥ skipped beat', '#ffe066'); return; }
+      if (this.troops.some(o => o.alive && o.k === 'cipro') && Math.random() < .08) { t.stun = 2; this.float(t.x, t.y - 16, 'Torsades! QT stacking', '#ff6b5e'); this.note('qt'); return; }
+    }
+    let amt = t.d.dmg; t.hits++;
+    if (t.k === 'amox' && t.hits % 3 === 0) amt *= 2;
+    this.emit('a', t.id, b.idx);
+    this.hitBuilding(b, amt, t, true);
+    if (t.k === 'cipro') {
+      const o = this.live().filter(x => x !== b && x.type !== 'wall' && dist(x, b) < 70).sort((p, q) => dist(p, b) - dist(q, b))[0];
+      if (o) { this.hitBuilding(o, amt * .5, t, false); this.emit('c', b.idx, o.idx); }
+    }
+    if (t.k === 'piptazo') {
+      this.live().filter(x => x !== b && x.type !== 'wall' && dist(x, b) < 44).forEach(x => this.hitBuilding(x, amt * .5, t, false));
+      this.emit('r', Math.round(b.x), Math.round(b.y), '#2ee6d6', 44);
+    }
+  }
+  hurtTroop(t, amt) {
+    t.hp -= amt;
+    if (t.hp <= 0 && t.alive) { t.alive = false; this.emit('x', t.id, Math.round(t.x), Math.round(t.y)); if (t.k === 'azithro') this.zones.push({ kind: 'depot', x: t.x, y: t.y, t: 6 }); }
+  }
+  applyPower() {
+    const b = this.base; this.pwApplied++;
+    this.emit('p', b.vpower);
+    this.float(CX, CY - 70, b.vpower + '!', '#ff6f9a');
+    if (b.id === 'strep') {
+      this.live().filter(x => x.kind === 'toxin').forEach(tw => {
+        const t = this.troops.filter(o => o.alive && dist(o, tw) < tw.range * 1.5).sort((p, q) => dist(p, tw) - dist(q, tw))[0];
+        if (t) { this.shots.push({ turret: tw, tgt: t, x: tw.x, y: tw.y, spd: 360, kind: 'toxin', splash: 46, dmg: 84 }); this.emit('s', tw.idx, t.id); }
+      });
+    } else if (b.id === 'mrsa' || b.id === 'pseudo') {
+      this.bld.forEach(w => { if (w.type !== 'wall') return; if (w.alive || b.id === 'mrsa') { if (!w.alive) this.emit('g', w.idx); w.alive = true; w.hp = w.max; } });
+      if (b.id === 'pseudo') this.effluxBoostT = 8;
+    } else if (b.id === 'ecoli') {
+      this.troops.forEach(t => { if (!t.alive) return; if (t.d.bl && !t.d.bli) { this.hurtTroop(t, t.max * .6); this.float(t.x, t.y - 16, 'Hydrolyzed!', '#ff6b5e'); this.note('blact'); } else if (t.d.bli) this.float(t.x, t.y - 16, 'Tazobactam blocks it', '#2ee6d6'); });
+    } else if (b.id === 'myco') {
+      for (let n = 0; n < 4; n++) this.replicate(true);
+    } else if (b.id === 'cdiff') {
+      this.live().forEach(c => { if (c.type === 'cell') c.dormT = 4; });
+    }
+  }
+  replicate(force) {
+    const cells = this.live().filter(b => b.type === 'cell' && (force || b.staticT <= 0));
+    const count = this.live().filter(b => b.type === 'cell').length;
+    if (!cells.length || (!force && count >= 21)) return;
+    const p = cells[Math.floor(Math.random() * cells.length)];
+    for (let tries = 0; tries < 10; tries++) {
+      const a = Math.random() * TAU, nx = p.x + Math.cos(a) * 26, ny = p.y + Math.sin(a) * 26;
+      if (Math.hypot(nx - CX, ny - CY) < NO_DEPLOY - 14 && !this.live().some(o => Math.hypot(o.x - nx, o.y - ny) < o.r + 12)) {
+        const nb = this.addBuilding(1, nx, ny); this.emit('g', nb.idx); this.float(nx, ny - 16, 'Divided', '#c9bff0'); return;
+      }
+    }
+  }
+  step(dt) {
+    if (this.over) return;
+    this.clock += dt;
+    if (this.deployed) this.timeLeft -= dt;
+    if (this.effluxBoostT > 0) this.effluxBoostT -= dt;
+    const base = this.base;
+    for (const t of this.troops) {
+      if (!t.alive) continue;
+      t.age += dt;
+      if (t.flush > 0) t.flush -= dt;
+      if (t.k === 'doxy' && this.inSun(t.x, t.y)) { this.hurtTroop(t, 24 * dt); t.sun = true; if (!t.sunNoted) { t.sunNoted = true; this.note('sun'); this.float(t.x, t.y - 16, 'Sunburn!', '#ffc145'); } } else t.sun = false;
+      if (this.cdCloud && Math.hypot(t.x - this.cdCloud.x, t.y - this.cdCloud.y) < 60) this.hurtTroop(t, 20 * dt);
+      if (!t.alive) continue;
+      if (t.stun > 0) { t.stun -= dt; continue; }
+      if (t.k === 'cipro' && !t.lame && t.age > 5) {
+        t.tick = (t.tick || 0) + dt;
+        if (t.tick > 1) { t.tick = 0; if (Math.random() < .08) { t.lame = true; this.float(t.x, t.y - 16, 'Tendon rupture!', '#ff6b5e'); this.note('tendon'); } }
+      }
+      if (!t.target || !t.target.alive) { t.target = this.pickTarget(t); t.block = null; }
+      if (t.block && !t.block.alive) t.block = null;
+      const tgt = t.block || t.target;
+      if (!tgt) continue;
+      const reach = dist(t, tgt) - tgt.r - 6;
+      t.cool -= dt;
+      if (reach <= t.d.range) { if (t.cool <= 0) { t.cool = t.d.rate; this.troopAttack(t, tgt); } }
+      else {
+        const spd = t.d.spd * (t.lame ? .25 : 1);
+        const a = Math.atan2(tgt.y - t.y, tgt.x - t.x); t.head = a;
+        const nx = t.x + Math.cos(a) * spd * dt, ny = t.y + Math.sin(a) * spd * dt;
+        const w = !t.block && this.bld.find(b => b.alive && b.type === 'wall' && Math.hypot(nx - b.x, ny - b.y) < b.r + 7);
+        if (w) t.block = w; else { t.x = nx; t.y = ny; }
+      }
+    }
+    for (const b of this.bld) {
+      if (!b.alive) continue;
+      if (b.hitT > 0) b.hitT -= dt;
+      if (b.staticT > 0) b.staticT -= dt;
+      if (b.dormT > 0) b.dormT -= dt;
+      const still = b.staticT > 0;
+      if (!still && base.id === 'ecoli' && b.type === 'cell' && b.hp < b.max) b.hp = Math.min(b.max, b.hp + 8 * dt);
+      if (!still && base.id === 'pseudo' && b.type === 'wall' && b.hp < b.max) b.hp = Math.min(b.max, b.hp + 4 * dt);
+      if (b.type !== 'turret') continue;
+      b.cool -= dt * (still ? .5 : 1);
+      if (b.cool > 0) continue;
+      let best = null, bd = 1e9;
+      for (const t of this.troops) {
+        if (!t.alive) continue; const dd = dist(b, t);
+        if (dd > b.range) continue;
+        const pri = b.kind === 'blact' && t.d.bl && !t.d.bli ? -1000 : 0;
+        if (dd + pri < bd) { bd = dd + pri; best = t; }
+      }
+      if (best) { b.cool = b.every; this.shots.push({ turret: b, tgt: best, x: b.x, y: b.y, spd: 300, kind: b.kind, splash: b.splash || 0, dmg: b.shot }); this.emit('s', b.idx, best.id); }
+    }
+    if (base.id === 'myco') { this.replT += dt; if (this.replT > 5) { this.replT = 0; this.replicate(false); } }
+    for (const s of this.shots) {
+      const t = s.tgt; const a = Math.atan2(t.y - s.y, t.x - s.x); s.x += Math.cos(a) * s.spd * dt; s.y += Math.sin(a) * s.spd * dt;
+      if (Math.hypot(t.x - s.x, t.y - s.y) < 8 || !t.alive) {
+        s.done = true; if (!t.alive) continue;
+        if (s.kind === 'blact') {
+          if (t.d.bl && !t.d.bli) { this.hurtTroop(t, 140); this.float(t.x, t.y - 16, 'Hydrolyzed!', '#ff6b5e'); this.note('blact'); }
+          else { this.hurtTroop(t, s.dmg); if (t.d.bli && Math.random() < .3) this.float(t.x, t.y - 16, 'Tazobactam blocks it', '#2ee6d6'); }
+        } else {
+          this.hurtTroop(t, s.dmg);
+          if (s.splash) { this.troops.forEach(o => { if (o !== t && o.alive && dist(o, t) < s.splash) this.hurtTroop(o, s.dmg * .6); }); this.emit('r', Math.round(t.x), Math.round(t.y), '#ff6b5e', s.splash); }
+        }
+      }
+    }
+    this.shots = this.shots.filter(s => !s.done);
+    for (const z of this.zones) {
+      z.t -= dt;
+      if (z.kind === 'depot') this.live().forEach(b => { if (b.type !== 'wall' && Math.hypot(b.x - z.x, b.y - z.y) < 55 && !(b.dormT > 0)) { b.hp -= 14 * base.cov.azithro[0] * dt; if (b.hp <= 0 && b.alive) this.destroy(b); } });
+      if (z.kind === 'spore' && z.t <= 0 && !this.live().some(o => Math.hypot(o.x - z.x, o.y - z.y) < o.r + 10)) {
+        const nb = this.addBuilding(1, z.x, z.y, 220, { spore: true, ang: z.ang }); this.emit('g', nb.idx); this.float(z.x, z.y - 16, 'Spore sprouted', '#c6a8ff');
+      }
+    }
+    this.zones = this.zones.filter(z => z.t > 0);
+    const cd = this.cdCloud;
+    if (cd) { cd.x += cd.vx * dt; cd.y += cd.vy * dt; if (cd.x < 60 || cd.x > W - 60) cd.vx *= -1; if (cd.y < 60 || cd.y > W - 60) cd.vy *= -1; }
+    const allDead = ORDER.every(k => !this.remaining[k]) && !this.troops.some(t => t.alive);
+    if (this.destroyed >= this.total || this.timeLeft <= 0 || allDead) {
+      this.endT += dt;
+      if (this.endT > (this.destroyed >= this.total ? .8 : 1.5)) { this.over = true; if (this.onEnd) this.onEnd(); }
+    }
+  }
+  snapshot() {
+    const flags = t => (t.stun > 0 ? 1 : 0) | (t.lame ? 2 : 0) | (t.flush > 0 ? 4 : 0) | (t.rash ? 8 : 0) | (t.sun ? 16 : 0) | (t.k === 'azithro' && t.beats % 5 === 4 ? 32 : 0);
+    const s = {
+      t: Math.round(this.timeLeft * 10) / 10, c: Math.round(this.clock * 10) / 10, pc: this.pct(), st: this.stars(), fl: Math.round(this.flora), su: this.sunOn ? 1 : 0, eb: this.effluxBoostT > 0 ? 1 : 0,
+      cd: this.cdCloud ? [Math.round(this.cdCloud.x), Math.round(this.cdCloud.y)] : 0,
+      b: this.bld.map(b => b.alive ? clamp(Math.round(b.hp / b.max * 100), 1, 100) + (b.dormT > 0 ? 1000 : 0) + (b.staticT > 0 ? 2000 : 0) : 0),
+      nb: this.extra,
+      tr: this.troops.filter(t => t.alive).map(t => [t.id, ORDER.indexOf(t.k), Math.round(t.x), Math.round(t.y), clamp(Math.round(t.hp / t.max * 100), 1, 100), flags(t), Math.round(t.head * 10)]),
+      z: this.zones.map(z => [z.kind === 'depot' ? 0 : 1, Math.round(z.x), Math.round(z.y)]),
+      ev: this.ev.filter(e => 'fsarpc'.includes(e[1])).slice(-12),
+      rem: ORDER.map(k => this.remaining[k] || 0), pa: this.pwApplied, end: this.over ? 1 : 0,
+    };
+    while (JSON.stringify(s).length > 3300 && s.ev.length) s.ev.shift();
+    return s;
+  }
+}
+
+/* ================= Ghost (defender's view of the attack) ================= */
+class Ghost {
+  constructor(base, layout) {
+    this.base = base; this.layoutLen = layout.length; this.bld = makeBuildings(base, layout);
+    this.tmap = new Map(); this.troops = []; this.zones = []; this.cdCloud = null; this.lastSeq = 0; this.clock = 0; this.sunOn = false; this.effluxBoostT = 0;
+    this.timeLeft = BATTLE_TIME; this.flora = base.flora; this.pc = 0; this.st = 0; this.end = 0; this.pa = 0; this.lastSnap = null;
+  }
+  troopById(id) { return this.tmap.get(id); }
+  apply(s) {
+    if (!s || s === this.lastSnap) return; this.lastSnap = s;
+    (s.nb || []).forEach((e, i) => { const idx = this.layoutLen + i; if (!this.bld[idx]) { const nb = mkB(this.base, e[0], e[1], e[2], idx, e[3] || 0); nb.alive = false; this.bld[idx] = nb; } });
+    (s.b || []).forEach((v, i) => {
+      const b = this.bld[i]; if (!b) return;
+      if (!v) { if (b.alive) { b.alive = false; fxHandle(this, 'k', [i]); } return; }
+      const hp = v % 1000, fl = Math.floor(v / 1000);
+      if (!b.alive) { b.alive = true; fxHandle(this, 'g', [i]); }
+      const nh = b.max * hp / 100; if (nh < b.hp - 1) b.hitT = .12; b.hp = nh;
+      b.dormT = fl & 1 ? 1 : 0; b.staticT = fl & 2 ? 1 : 0;
+    });
+    const seen = new Set();
+    for (const [id, ki, x, y, hp, fl, h] of (s.tr || [])) {
+      seen.add(id);
+      let t = this.tmap.get(id);
+      if (!t) { const k = ORDER[ki]; t = { id, k, d: DRUGS[k], x, y, tx: x, ty: y, max: DRUGS[k].hp, alive: true, beats: 0 }; this.tmap.set(id, t); fxHandle(this, 'd', [x, y, ki]); }
+      t.tx = x; t.ty = y; t.hp = t.max * hp / 100; t.head = h / 10;
+      t.stun = fl & 1 ? 1 : 0; t.lame = !!(fl & 2); t.flush = fl & 4 ? 1 : 0; t.rash = !!(fl & 8); t.sun = !!(fl & 16); t.qt = !!(fl & 32);
+    }
+    for (const [id, t] of this.tmap) if (!seen.has(id)) { fxHandle(this, 'x', [id, t.x, t.y]); this.tmap.delete(id); }
+    this.troops = [...this.tmap.values()];
+    for (const e of (s.ev || [])) { if (e[0] <= this.lastSeq) continue; this.lastSeq = e[0]; fxHandle(this, e[1], e.slice(2)); }
+    this.zones = (s.z || []).map(([k, x, y]) => ({ kind: k ? 'spore' : 'depot', x, y, t: 2 }));
+    this.cdCloud = s.cd ? { x: s.cd[0], y: s.cd[1] } : null;
+    this.timeLeft = s.t; this.flora = s.fl; this.pc = s.pc; this.st = s.st; this.sunOn = !!s.su; this.effluxBoostT = s.eb ? 1 : 0; this.end = s.end; this.pa = s.pa || 0;
+    if (Math.abs(s.c - this.clock) > .5) this.clock = s.c;
+  }
+  step(dt) {
+    this.clock += dt;
+    for (const b of this.bld) if (b.hitT > 0) b.hitT -= dt;
+    for (const t of this.troops) { const k = Math.min(1, dt * 10); t.x += (t.tx - t.x) * k; t.y += (t.ty - t.y) * k; }
+  }
+}
+
+/* ================= Effects ================= */
+const FX = { parts: [], rings: [], floats: [], proj: [], beams: [], stains: [], trails: new Map(), shake: 0 };
+function fxReset() { FX.parts = []; FX.rings = []; FX.floats = []; FX.proj = []; FX.beams = []; FX.stains = []; FX.trails = new Map(); FX.shake = 0; }
+function sparks(x, y, col, n, spd = 140) { for (let i = 0; i < n; i++) { const a = Math.random() * TAU, v = spd * (.3 + Math.random()); FX.parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, r: 1.5 + Math.random() * 2.5, col, life: .4 + Math.random() * .4, max: .8 }); } }
+function fxHandle(view, kind, a) {
+  switch (kind) {
+    case 'f': FX.floats.push({ x: a[0], y: a[1], txt: a[2], col: a[3] || '#fff', t: 0 }); break;
+    case 's': { const tur = view.bld[a[0]]; if (!tur) break; tur.flash = .3; FX.proj.push({ x: tur.x, y: tur.y, tid: a[1], col: tur.kind === 'blact' ? '#ff9f43' : tur.kind === 'efflux' ? '#ff9ad0' : '#ff4f6a', trail: [], life: 2.5 }); break; }
+    case 'a': { const t = view.troopById(a[0]), b = view.bld[a[1]]; if (!t || !b) break; const d = t.d, dd = dist(t, b) || 1;
+      const ix = b.x + (t.x - b.x) / dd * b.r * .8, iy = b.y + (t.y - b.y) / dd * b.r * .8;
+      if (d.range > 30) FX.beams.push({ x1: t.x, y1: t.y, x2: ix, y2: iy, col: d.col, life: .2, max: .2 });
+      sparks(ix, iy, d.col, 6, 120); b.hitT = .12; break; }
+    case 'c': { const p = view.bld[a[0]], q = view.bld[a[1]]; if (p && q) FX.beams.push({ x1: p.x, y1: p.y, x2: q.x, y2: q.y, col: '#9be15d', life: .2, max: .2, zig: true }); break; }
+    case 'k': { const b = view.bld[a[0]]; if (b) lysis(b, view.base); break; }
+    case 'g': { const b = view.bld[a[0]]; if (b) FX.rings.push({ x: b.x, y: b.y, r0: 4, r1: b.r + 14, col: view.base.col, life: .5, max: .5, w: 3 }); break; }
+    case 'd': { const col = DRUGS[ORDER[a[2]]].col; FX.rings.push({ x: a[0], y: a[1], r0: 4, r1: 34, col, life: .55, max: .55, w: 4 }); sparks(a[0], a[1], col, 10, 90); break; }
+    case 'x': sparks(a[1], a[2], '#ffffff', 10, 110); FX.rings.push({ x: a[1], y: a[2], r0: 2, r1: 20, col: '#ffffff', life: .35, max: .35, w: 2 }); break;
+    case 'r': FX.rings.push({ x: a[0], y: a[1], r0: 6, r1: a[3] || 40, col: a[2], life: .4, max: .4, w: 4 }); break;
+    case 'p': FX.rings.push({ x: CX, y: CY, r0: 20, r1: 260, col: '#ff6f9a', life: 1, max: 1, w: 8 }); FX.shake = Math.max(FX.shake, 6); break;
+  }
+}
+function lysis(b, base) {
+  const col = b.type === 'wall' ? (base.id === 'mrsa' ? '#e8cf7a' : '#6ee0b8') : b.type === 'turret' ? '#ff6b5e' : base.col;
+  const n = b.type === 'core' ? 46 : b.type === 'turret' ? 26 : b.type === 'wall' ? 8 : 16;
+  for (let i = 0; i < n; i++) { const a = Math.random() * TAU, v = (b.type === 'core' ? 220 : 120) * (.3 + Math.random()); FX.parts.push({ x: b.x, y: b.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, r: 2 + Math.random() * (b.type === 'core' ? 6 : 4), col: i % 3 ? col : light(col, .5), life: .5 + Math.random() * .6, max: 1.1, frag: true, rot: Math.random() * 6 }); }
+  FX.rings.push({ x: b.x, y: b.y, r0: b.r * .5, r1: b.r * 2.4, col, life: .5, max: .5, w: b.type === 'core' ? 8 : 4 });
+  if (b.type !== 'wall') FX.stains.push({ x: b.x, y: b.y, r: b.r * 1.1, col });
+  FX.shake = Math.max(FX.shake, b.type === 'core' ? 14 : b.type === 'turret' ? 5 : 1.5);
+}
+function fxStep(view, dt) {
+  for (const p of FX.parts) { p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= (1 - dt * 3); p.vy *= (1 - dt * 3); p.life -= dt; if (p.rot !== undefined) p.rot += dt * 5; }
+  FX.parts = FX.parts.filter(p => p.life > 0); if (FX.parts.length > 600) FX.parts.splice(0, FX.parts.length - 600);
+  for (const r of FX.rings) r.life -= dt; FX.rings = FX.rings.filter(r => r.life > 0);
+  for (const b of FX.beams) b.life -= dt; FX.beams = FX.beams.filter(b => b.life > 0);
+  for (const f of FX.floats) { f.t += dt; f.y -= 18 * dt; } FX.floats = FX.floats.filter(f => f.t < 1.9);
+  for (const p of FX.proj) {
+    const t = view.troopById ? view.troopById(p.tid) : null; p.life -= dt;
+    if (!t) { p.life = Math.min(p.life, .15); continue; }
+    const a = Math.atan2(t.y - p.y, t.x - p.x); p.x += Math.cos(a) * 320 * dt; p.y += Math.sin(a) * 320 * dt;
+    p.trail.push([p.x, p.y]); if (p.trail.length > 8) p.trail.shift();
+    if (Math.hypot(t.x - p.x, t.y - p.y) < 9) { p.life = 0; sparks(p.x, p.y, p.col, 7, 100); }
+  }
+  FX.proj = FX.proj.filter(p => p.life > 0);
+  for (const t of view.troops || []) {
+    if (t.alive === false) continue;
+    let tr = FX.trails.get(t.id); if (!tr) { tr = []; FX.trails.set(t.id, tr); }
+    const l = tr[tr.length - 1]; if (!l || Math.hypot(l[0] - t.x, l[1] - t.y) > 4) { tr.push([t.x, t.y]); if (tr.length > 10) tr.shift(); }
+  }
+  if (FX.trails.size > 60) for (const id of [...FX.trails.keys()]) if (!view.troopById(id)) FX.trails.delete(id);
+  FX.shake = Math.max(0, FX.shake - dt * 30);
+  for (const b of view.bld) if (b.flash > 0) b.flash -= dt;
+}
+
+/* ================= Rendering ================= */
+const cv = $('#cv'), ctx = cv.getContext('2d');
+let S = 400, DPR = 1;
+function resize() {
+  const st = $('#stage').getBoundingClientRect();
+  S = Math.max(240, Math.floor(Math.min(st.width - 24, st.height - 24)));
+  DPR = Math.min(2, window.devicePixelRatio || 1);
+  cv.style.width = S + 'px'; cv.style.height = S + 'px';
+  cv.width = Math.round(S * DPR); cv.height = Math.round(S * DPR);
+}
+const sunPos = (clock, i) => ((clock * 22 + i * 420) % 900) - 300;
+const tissueCache = {};
+function tissueFor(b) { return tissueCache[b.id] || (tissueCache[b.id] = paintTissue(b, 1200)); }
+function paintTissue(b, px) {
+  const c = document.createElement('canvas'); c.width = c.height = px; const g = c.getContext('2d'); g.scale(px / W, px / W);
+  const R = rng(b.id.length * 977 + b.id.charCodeAt(0) * 13);
+  const gr = g.createRadialGradient(CX, CY - 40, 30, CX, CY, 460); gr.addColorStop(0, light(b.bg[0], .08)); gr.addColorStop(.55, b.bg[0]); gr.addColorStop(1, b.bg[1]);
+  g.fillStyle = gr; g.fillRect(0, 0, W, W);
+  for (let i = 0; i < 260; i++) { const x = R() * W, y = R() * W, r = 6 + R() * 42; g.fillStyle = R() < .5 ? 'rgba(255,255,255,.025)' : 'rgba(0,0,0,.05)'; g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill(); }
+  const m = b.motif;
+  if (m === 'alveoli') {
+    for (let i = 0; i < 34; i++) { const x = R() * W, y = R() * W, r = 26 + R() * 34;
+      g.fillStyle = 'rgba(0,0,0,.16)'; g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill();
+      g.strokeStyle = 'rgba(200,220,255,.12)'; g.lineWidth = 5; g.stroke();
+      g.strokeStyle = 'rgba(255,255,255,.06)'; g.lineWidth = 1.5; g.beginPath(); g.arc(x - 2, y - 2, r - 4, Math.PI * 1.1, Math.PI * 1.7); g.stroke(); }
+  } else if (m === 'crypts') {
+    for (let i = 0; i < 30; i++) { const x = R() * W, y = R() * W, r = 18 + R() * 16;
+      const cg = g.createRadialGradient(x, y, 2, x, y, r); cg.addColorStop(0, 'rgba(10,6,2,.55)'); cg.addColorStop(.6, 'rgba(30,20,10,.25)'); cg.addColorStop(1, 'rgba(255,230,190,.07)');
+      g.fillStyle = cg; g.beginPath(); g.ellipse(x, y, r, r * .8, R() * 3, 0, TAU); g.fill();
+      for (let k = 0; k < 8; k++) { const a = k / 8 * TAU; g.fillStyle = 'rgba(255,240,210,.09)'; g.beginPath(); g.arc(x + Math.cos(a) * r * 1.15, y + Math.sin(a) * r * .95, 4, 0, TAU); g.fill(); } }
+  } else {
+    const n = m === 'burn' ? 40 : 70;
+    for (let i = 0; i < n; i++) { const x = R() * W, y = R() * W, r = 14 + R() * 20, sides = 6;
+      g.beginPath(); for (let k = 0; k <= sides; k++) { const a = k / sides * TAU + R() * .2, rr = r * (.85 + R() * .3); k ? g.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr) : g.moveTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); }
+      g.closePath(); g.fillStyle = 'rgba(255,255,255,.035)'; g.fill(); g.strokeStyle = 'rgba(255,220,235,.07)'; g.lineWidth = 1.5; g.stroke();
+      const ng = g.createRadialGradient(x - 2, y - 2, 1, x, y, r * .35); ng.addColorStop(0, 'rgba(170,140,255,.22)'); ng.addColorStop(1, 'rgba(120,90,220,.06)');
+      g.fillStyle = ng; g.beginPath(); g.arc(x + R() * 4 - 2, y + R() * 4 - 2, r * .33, 0, TAU); g.fill(); }
+    if (m === 'burn') for (let i = 0; i < 26; i++) { const x = R() * W, y = R() * W; g.fillStyle = 'rgba(20,10,4,.25)'; g.beginPath(); g.ellipse(x, y, 12 + R() * 30, 8 + R() * 16, R() * 3, 0, TAU); g.fill(); }
+  }
+  g.lineCap = 'round';
+  for (let i = 0; i < 26; i++) { g.strokeStyle = `rgba(255,255,255,${.02 + R() * .03})`; g.lineWidth = 1 + R() * 2; g.beginPath(); const x = R() * W, y = R() * W; g.moveTo(x, y); g.bezierCurveTo(x + R() * 200 - 100, y + R() * 200 - 100, x + R() * 200 - 100, y + R() * 200 - 100, x + R() * 300 - 150, y + R() * 300 - 150); g.stroke(); }
+  return c;
+}
+const FLOATERS = Array.from({ length: 46 }, (_, i) => { const R = rng(i * 131 + 7); return { x: R() * W, y: R() * W, r: .8 + R() * 2.6, vx: (R() - .5) * 8, vy: (R() - .5) * 8, a: .05 + R() * .12, z: .5 + R() }; });
+
+function bodyGrad(g, x, y, r, col) { const gr = g.createRadialGradient(x - r * .35, y - r * .42, r * .08, x, y, r * 1.08); gr.addColorStop(0, light(col, .6)); gr.addColorStop(.5, col); gr.addColorStop(1, dark(col, .5)); return gr; }
+function coccus(g, x, y, r, col) {
+  g.fillStyle = bodyGrad(g, x, y, r, col); g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill();
+  g.strokeStyle = dark(col, .6); g.lineWidth = 1.2; g.stroke();
+  g.fillStyle = 'rgba(255,255,255,.5)'; g.beginPath(); g.ellipse(x - r * .34, y - r * .42, r * .3, r * .16, -.6, 0, TAU); g.fill();
+}
+function capsulePath(g, len, r) { g.beginPath(); g.moveTo(-len / 2 + r, -r); g.lineTo(len / 2 - r, -r); g.arc(len / 2 - r, 0, r, -Math.PI / 2, Math.PI / 2); g.lineTo(-len / 2 + r, r); g.arc(-len / 2 + r, 0, r, Math.PI / 2, Math.PI * 1.5); g.closePath(); }
+function rodBody(g, len, r, col) {
+  const lg = g.createLinearGradient(0, -r, 0, r); lg.addColorStop(0, light(col, .55)); lg.addColorStop(.45, col); lg.addColorStop(1, dark(col, .5));
+  capsulePath(g, len, r); g.fillStyle = lg; g.fill(); g.strokeStyle = dark(col, .6); g.lineWidth = 1.2; g.stroke();
+  g.strokeStyle = 'rgba(255,255,255,.45)'; g.lineWidth = r * .32; g.lineCap = 'round'; g.beginPath(); g.moveTo(-len / 2 + r * 1.1, -r * .45); g.lineTo(len / 2 - r * 1.3, -r * .45); g.stroke();
+  g.fillStyle = 'rgba(0,0,0,.18)'; for (let i = -1; i <= 1; i++) { g.beginPath(); g.arc(i * len * .2, r * .2, r * .16, 0, TAU); g.fill(); }
+}
+function drawBug(g, base, b, clock) {
+  const col = base.col, sh = base.shape, r = b.r;
+  const wob = 1 + Math.sin(clock * 2.2 + b.phase) * .04;
+  g.save(); g.translate(b.x, b.y);
+  g.fillStyle = 'rgba(0,0,0,.28)'; g.beginPath(); g.ellipse(3, 5, r * 1.15, r * .8, 0, 0, TAU); g.fill();
+  if (b.staticT > 0) { g.strokeStyle = 'rgba(230,225,245,.75)'; g.setLineDash([3, 3]); g.lineWidth = 1.5; g.beginPath(); g.arc(0, 0, r + 6, 0, TAU); g.stroke(); g.setLineDash([]); }
+  if (b.dormT > 0) {
+    g.fillStyle = bodyGrad(g, 0, 0, r * 1.05, '#f1ecff'); g.beginPath(); g.ellipse(0, 0, r * .8, r * 1.05, b.ang, 0, TAU); g.fill();
+    g.strokeStyle = '#9b6bff'; g.lineWidth = 2.5; g.stroke(); g.restore(); return;
+  }
+  g.scale(wob, 2 - wob);
+  if (sh === 'chain') { g.rotate(b.ang); coccus(g, -r * .5, 0, r * .6, col); coccus(g, r * .5, 0, r * .6, col); }
+  else if (sh === 'cluster') { [[0, -.42], [-.42, .2], [.42, .2], [0, .48]].forEach(([dx, dy], i) => coccus(g, dx * r, dy * r, r * (i === 3 ? .42 : .5), col)); }
+  else if (sh === 'blob') {
+    const pts = 14; g.beginPath();
+    for (let i = 0; i <= pts; i++) { const a = i / pts * TAU, rr = r * (1 + .16 * Math.sin(a * 3 + b.phase * 4 + clock * 2) + .06 * Math.sin(a * 5 - clock * 3)); i ? g.lineTo(Math.cos(a) * rr, Math.sin(a) * rr) : g.moveTo(Math.cos(a) * rr, Math.sin(a) * rr); }
+    g.closePath(); g.fillStyle = bodyGrad(g, 0, 0, r, col); g.globalAlpha = .9; g.fill(); g.globalAlpha = 1;
+    g.setLineDash([2, 3]); g.strokeStyle = light(col, .5); g.lineWidth = 1.3; g.stroke(); g.setLineDash([]);
+    g.fillStyle = 'rgba(40,30,70,.35)'; for (let i = 0; i < 4; i++) { g.beginPath(); g.arc(Math.cos(i * 1.7 + b.phase) * r * .4, Math.sin(i * 2.3 + b.phase) * r * .4, r * .12, 0, TAU); g.fill(); }
+  } else {
+    g.rotate(b.ang);
+    const len = r * 2.3, rr = r * .62;
+    if (sh === 'rod') { g.strokeStyle = 'rgba(255,208,224,.45)'; g.lineWidth = 1; for (let i = -3; i <= 3; i++) { const sw = Math.sin(clock * 3 + i) * 1.5; g.beginPath(); g.moveTo(i * 4, -rr); g.lineTo(i * 4 + 2 + sw, -rr - 6); g.moveTo(i * 4, rr); g.lineTo(i * 4 - 2 - sw, rr + 6); g.stroke(); } }
+    if (sh === 'flag') { g.save(); g.shadowColor = '#6fe0b8'; g.shadowBlur = 6; g.strokeStyle = '#7ff0c8'; g.lineWidth = 1.6; g.beginPath(); for (let i = 0; i <= 18; i++) { const xx = len / 2 + i * 1.7, yy = Math.sin(i * .7 - clock * 9 + b.phase) * 3.5 * (i / 18 + .3); i ? g.lineTo(xx, yy) : g.moveTo(xx, yy); } g.stroke(); g.restore(); }
+    rodBody(g, len, rr, col);
+    if (sh === 'spore') { const sg = g.createRadialGradient(len * .32, 0, 1, len * .32, 0, rr); sg.addColorStop(0, '#ffffff'); sg.addColorStop(1, '#d9ccff'); g.fillStyle = sg; g.beginPath(); g.ellipse(len * .32, 0, rr * .7, rr * .85, 0, 0, TAU); g.fill(); g.strokeStyle = '#7d5bd6'; g.lineWidth = 1; g.stroke(); }
+  }
+  if (b.hp < b.max * .5) { g.fillStyle = 'rgba(20,0,10,.25)'; g.beginPath(); g.arc(0, 0, r, 0, TAU); g.fill(); }
+  if (b.hitT > 0) { g.globalCompositeOperation = 'lighter'; g.fillStyle = `rgba(255,255,255,${b.hitT * 3})`; g.beginPath(); g.arc(0, 0, r * 1.05, 0, TAU); g.fill(); g.globalCompositeOperation = 'source-over'; }
+  g.restore();
+}
+function label(g, txt, x, y, col) { g.font = '700 9px "Atkinson Hyperlegible", sans-serif'; g.textAlign = 'center'; g.lineWidth = 3; g.strokeStyle = 'rgba(10,6,18,.8)'; g.strokeText(txt, x, y); g.fillStyle = col; g.fillText(txt, x, y); }
+function drawCore(g, base, b, clock) {
+  g.save(); g.translate(b.x, b.y);
+  const pulse = 1 + Math.sin(clock * 3) * .05, r = b.r;
+  g.globalCompositeOperation = 'lighter';
+  const hg = g.createRadialGradient(0, 0, r * .3, 0, 0, r * 2.3 * pulse); hg.addColorStop(0, rgba(base.col, .35)); hg.addColorStop(1, rgba(base.col, 0));
+  g.fillStyle = hg; g.beginPath(); g.arc(0, 0, r * 2.3 * pulse, 0, TAU); g.fill();
+  g.globalCompositeOperation = 'source-over';
+  g.fillStyle = 'rgba(0,0,0,.35)'; g.beginPath(); g.ellipse(4, 7, r * 1.25, r, 0, 0, TAU); g.fill();
+  g.strokeStyle = 'rgba(255,255,255,.18)'; g.lineWidth = 2; g.setLineDash([4, 6]); g.lineDashOffset = -clock * 12; g.beginPath(); g.arc(0, 0, r * 1.38, 0, TAU); g.stroke(); g.setLineDash([]);
+  const rodLike = base.shape === 'rod' || base.shape === 'flag' || base.shape === 'spore';
+  for (let i = 0; i < 9; i++) {
+    const a = i / 8 * TAU + clock * .15, rr = i === 8 ? 0 : r * .58, x = Math.cos(a) * rr, y = Math.sin(a) * rr, s = r * (i === 8 ? .5 : .4) * pulse;
+    if (rodLike) { g.save(); g.translate(x, y); g.rotate(a + (i === 8 ? clock * .3 : Math.PI / 2)); rodBody(g, s * 2.2, s * .55, base.col); g.restore(); }
+    else coccus(g, x, y, s, base.col);
+  }
+  const ng = g.createRadialGradient(0, 0, 1, 0, 0, r * .3); ng.addColorStop(0, '#fff6c9'); ng.addColorStop(1, 'rgba(255,193,69,0)');
+  g.globalCompositeOperation = 'lighter'; g.fillStyle = ng; g.beginPath(); g.arc(0, 0, r * .3 * pulse, 0, TAU); g.fill(); g.globalCompositeOperation = 'source-over';
+  if (b.hitT > 0) { g.globalCompositeOperation = 'lighter'; g.fillStyle = `rgba(255,255,255,${b.hitT * 2})`; g.beginPath(); g.arc(0, 0, r * 1.1, 0, TAU); g.fill(); g.globalCompositeOperation = 'source-over'; }
+  g.restore();
+  label(g, 'COLONY CORE', b.x, b.y + r + 20, 'rgba(255,240,200,.75)');
+}
+function drawTurret(g, base, b, clock, view) {
+  const charge = 1 - clamp(b.cool / (b.every || 1), 0, 1);
+  g.save(); g.translate(b.x, b.y);
+  if (b.kind === 'efflux') {
+    const ar = b.aura * (view.effluxBoostT > 0 ? 1.6 : 1);
+    const ag = g.createRadialGradient(0, 0, ar * .2, 0, 0, ar); ag.addColorStop(0, 'rgba(255,111,154,.10)'); ag.addColorStop(1, 'rgba(255,111,154,0)');
+    g.fillStyle = ag; g.beginPath(); g.arc(0, 0, ar, 0, TAU); g.fill();
+    g.strokeStyle = 'rgba(255,140,180,.35)'; g.setLineDash([4, 7]); g.lineDashOffset = clock * 10; g.lineWidth = 1.5; g.beginPath(); g.arc(0, 0, ar, 0, TAU); g.stroke(); g.setLineDash([]);
+    g.fillStyle = 'rgba(255,170,205,.55)';
+    for (let i = 0; i < 12; i++) { const a = i / 12 * TAU + .3, d = ((clock * 40 + i * 37) % (ar - 20)) + 20; g.beginPath(); g.arc(Math.cos(a) * d, Math.sin(a) * d, 1.8, 0, TAU); g.fill(); }
+  } else {
+    g.strokeStyle = 'rgba(255,107,94,.08)'; g.lineWidth = 1; g.beginPath(); g.arc(0, 0, b.range, 0, TAU); g.stroke();
+  }
+  g.fillStyle = 'rgba(0,0,0,.35)'; g.beginPath(); g.ellipse(3, 6, b.r * 1.25, b.r, 0, 0, TAU); g.fill();
+  const bg = g.createRadialGradient(-4, -5, 2, 0, 0, b.r + 2); bg.addColorStop(0, '#3a2c55'); bg.addColorStop(1, '#120c1e');
+  g.fillStyle = bg; g.beginPath(); g.arc(0, 0, b.r, 0, TAU); g.fill();
+  g.strokeStyle = base.col; g.lineWidth = 3; g.stroke();
+  if (b.kind === 'toxin') {
+    for (let i = 0; i < 9; i++) {
+      const a = i / 9 * TAU + clock * .7, len = 7 + charge * 5;
+      g.fillStyle = i % 2 ? '#ffb3c4' : '#ffe3ea'; g.beginPath(); g.moveTo(Math.cos(a - .13) * (b.r - 1), Math.sin(a - .13) * (b.r - 1)); g.lineTo(Math.cos(a) * (b.r + len), Math.sin(a) * (b.r + len)); g.lineTo(Math.cos(a + .13) * (b.r - 1), Math.sin(a + .13) * (b.r - 1)); g.fill();
+    }
+    g.globalCompositeOperation = 'lighter';
+    const cg = g.createRadialGradient(0, 0, 1, 0, 0, 12 + charge * 6); cg.addColorStop(0, `rgba(255,120,130,${.6 + charge * .4})`); cg.addColorStop(1, 'rgba(255,40,80,0)');
+    g.fillStyle = cg; g.beginPath(); g.arc(0, 0, 12 + charge * 6, 0, TAU); g.fill(); g.globalCompositeOperation = 'source-over';
+    g.fillStyle = '#ff4f6a'; g.beginPath(); g.arc(0, 0, 6, 0, TAU); g.fill();
+  } else if (b.kind === 'blact') {
+    const m = .25 + Math.abs(Math.sin(clock * 5)) * .45;
+    g.globalCompositeOperation = 'lighter'; g.fillStyle = 'rgba(255,159,67,.25)'; g.beginPath(); g.arc(0, 0, b.r + 6, 0, TAU); g.fill(); g.globalCompositeOperation = 'source-over';
+    const og = g.createRadialGradient(-3, -4, 1, 0, 0, b.r - 3); og.addColorStop(0, '#ffd29a'); og.addColorStop(1, '#e8781c');
+    g.fillStyle = og; g.beginPath(); g.moveTo(0, 0); g.arc(0, 0, b.r - 3, m, TAU - m); g.closePath(); g.fill();
+    g.fillStyle = '#1a1226'; g.beginPath(); g.arc(1, -7, 2.2, 0, TAU); g.fill();
+    g.font = '700 9px "Atkinson Hyperlegible", sans-serif'; g.textAlign = 'center'; g.fillText('β', -5, 5);
+  } else if (b.kind === 'efflux') {
+    for (let i = 0; i < 8; i++) { const a = i / 8 * TAU + clock * 1.2; g.save(); g.rotate(a); const pg = g.createLinearGradient(0, -4, 0, 4); pg.addColorStop(0, '#ffc6dc'); pg.addColorStop(1, '#c4507c'); g.fillStyle = pg; g.beginPath(); g.ellipse(b.r - 7, 0, 5, 3.4, 0, 0, TAU); g.fill(); g.restore(); }
+    g.fillStyle = '#0b0712'; g.beginPath(); g.arc(0, 0, 5, 0, TAU); g.fill();
+    g.strokeStyle = '#ffa5c0'; g.lineWidth = 1.5; g.beginPath(); g.arc(0, 0, 5, 0, TAU); g.stroke();
+  }
+  if (b.flash > 0) { g.globalCompositeOperation = 'lighter'; g.fillStyle = `rgba(255,200,200,${b.flash * 2})`; g.beginPath(); g.arc(0, 0, b.r + 4, 0, TAU); g.fill(); g.globalCompositeOperation = 'source-over'; }
+  if (b.hitT > 0) { g.globalCompositeOperation = 'lighter'; g.fillStyle = `rgba(255,255,255,${b.hitT * 2.5})`; g.beginPath(); g.arc(0, 0, b.r, 0, TAU); g.fill(); g.globalCompositeOperation = 'source-over'; }
+  g.restore();
+  label(g, b.name, b.x, b.y + b.r + 15, 'rgba(244,239,253,.8)');
+}
+function drawWalls(g, base, walls) {
+  const pus = base.id === 'mrsa';
+  const c1 = pus ? 'rgba(232,207,122,.55)' : 'rgba(110,224,184,.38)', edge = pus ? '#9c7d32' : 'rgba(50,150,115,.9)';
+  g.lineCap = 'round';
+  for (let i = 0; i < walls.length; i++) for (let j = i + 1; j < walls.length; j++) {
+    const a = walls[i], b = walls[j]; if (Math.abs(a.x - b.x) > 24 || Math.abs(a.y - b.y) > 24 || Math.hypot(a.x - b.x, a.y - b.y) > 24) continue;
+    g.strokeStyle = c1; g.lineWidth = 13; g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke();
+  }
+  for (const b of walls) {
+    const r = b.r * (.72 + .28 * b.hp / b.max);
+    const wg = g.createRadialGradient(b.x - r * .35, b.y - r * .4, 1, b.x, b.y, r * 1.1);
+    if (pus) { wg.addColorStop(0, '#fff6d6'); wg.addColorStop(.5, '#e8cf7a'); wg.addColorStop(1, '#a9893a'); } else { wg.addColorStop(0, 'rgba(210,255,236,.95)'); wg.addColorStop(.5, 'rgba(110,224,184,.8)'); wg.addColorStop(1, 'rgba(40,140,105,.85)'); }
+    g.fillStyle = wg; g.beginPath(); g.arc(b.x, b.y, r, 0, TAU); g.fill(); g.strokeStyle = edge; g.lineWidth = 1.2; g.stroke();
+    if (b.hitT > 0) { g.fillStyle = `rgba(255,255,255,${b.hitT * 3})`; g.beginPath(); g.arc(b.x, b.y, r, 0, TAU); g.fill(); }
+  }
+}
+function rrect(g, x, y, w, h, r) { g.beginPath(); if (g.roundRect) g.roundRect(x, y, w, h, r); else g.rect(x, y, w, h); }
+function hpBar(g, x, y, w, f, col) { if (f >= .999) return; g.fillStyle = 'rgba(0,0,0,.65)'; rrect(g, x - w / 2 - 1, y - 1, w + 2, 6, 3); g.fill(); g.fillStyle = col; g.fillRect(x - w / 2, y, w * Math.max(0, f), 4); }
+function drawTroop(g, t, clock) {
+  const d = t.d, big = t.k === 'vanc' ? 1.45 : t.k === 'piptazo' ? 1.15 : 1;
+  const tr = FX.trails.get(t.id);
+  if (tr) for (let i = 0; i < tr.length - 1; i++) { g.fillStyle = rgba(d.col, i / tr.length * .22); g.beginPath(); g.arc(tr[i][0], tr[i][1], 4 * big * (i / tr.length), 0, TAU); g.fill(); }
+  g.save(); g.translate(t.x, t.y);
+  g.fillStyle = 'rgba(0,0,0,.35)'; g.beginPath(); g.ellipse(2, 7 * big, 12 * big, 5 * big, 0, 0, TAU); g.fill();
+  g.globalCompositeOperation = 'lighter';
+  const halo = t.flush > 0 ? '#ff4040' : t.sun ? '#ffc145' : d.col;
+  const hg = g.createRadialGradient(0, 0, 2, 0, 0, 20 * big); hg.addColorStop(0, rgba(halo, t.flush > 0 || t.sun ? .55 : .28)); hg.addColorStop(1, rgba(halo, 0));
+  g.fillStyle = hg; g.beginPath(); g.arc(0, 0, 20 * big, 0, TAU); g.fill(); g.globalCompositeOperation = 'source-over';
+  g.rotate((t.head || 0) + (t.stun > 0 ? Math.sin(clock * 30) * .3 : 0));
+  const L = 24 * big, R = 7 * big;
+  g.save(); capsulePath(g, L, R); g.clip();
+  const wg = g.createLinearGradient(0, -R, 0, R); wg.addColorStop(0, '#ffffff'); wg.addColorStop(1, '#bdb6d6'); g.fillStyle = wg; g.fillRect(-L / 2, -R, L / 2, R * 2);
+  const cg = g.createLinearGradient(0, -R, 0, R); cg.addColorStop(0, light(d.col, .45)); cg.addColorStop(.5, d.col); cg.addColorStop(1, dark(d.col, .45)); g.fillStyle = cg; g.fillRect(0, -R, L / 2, R * 2);
+  g.fillStyle = 'rgba(255,255,255,.55)'; g.fillRect(-L / 2 + 3, -R + 2, L - 6, R * .45);
+  g.fillStyle = 'rgba(0,0,0,.18)'; g.fillRect(-1, -R, 2, R * 2);
+  g.restore();
+  g.strokeStyle = '#0c0814'; g.lineWidth = 2; capsulePath(g, L, R); g.stroke();
+  if (t.rash) { g.fillStyle = '#ff3d3d'; [[-7, -2], [-3, 3], [3, -3], [7, 2], [-1, -4]].forEach(([x, y]) => { g.beginPath(); g.arc(x, y, 1.6, 0, TAU); g.fill(); }); }
+  g.restore();
+  if (t.stun > 0) { g.fillStyle = '#ffe066'; for (let i = 0; i < 3; i++) { const a = clock * 6 + i * TAU / 3; g.beginPath(); g.arc(t.x + Math.cos(a) * 12, t.y - 16 * big + Math.sin(a) * 4, 2, 0, TAU); g.fill(); } }
+  const tag = d.tag + (t.lame ? ' · LAME' : '');
+  g.font = '700 8px "Atkinson Hyperlegible", sans-serif'; g.textAlign = 'center';
+  const tw = g.measureText(tag).width + 8, ty = t.y + 13 * big + 4;
+  g.fillStyle = 'rgba(12,8,20,.85)'; rrect(g, t.x - tw / 2, ty, tw, 11, 5); g.fill();
+  g.fillStyle = t.lame ? '#ff8a80' : d.col; g.fillText(tag, t.x, ty + 8.5);
+  if (t.qt || (t.k === 'azithro' && t.beats % 5 === 4)) { g.fillStyle = Math.sin(clock * 12) > 0 ? '#ffe066' : '#ff6b5e'; g.font = '700 11px sans-serif'; g.fillText('♥', t.x + 15, t.y - 10); }
+  hpBar(g, t.x, t.y - 13 * big - 6, 22 * big, t.hp / t.max, '#5fe0a0');
+}
+function render(view, opts = {}) {
+  const g = ctx, base = view.base, clock = view.clock;
+  g.setTransform(S * DPR / W, 0, 0, S * DPR / W, 0, 0);
+  g.fillStyle = '#05030a'; g.fillRect(0, 0, W, W);
+  g.save();
+  if (FX.shake > 0) g.translate((Math.random() - .5) * FX.shake, (Math.random() - .5) * FX.shake);
+  g.drawImage(tissueFor(base), 0, 0, W, W);
+  for (const f of FLOATERS) { const x = ((f.x + f.vx * clock * f.z) % W + W) % W, y = ((f.y + f.vy * clock * f.z) % W + W) % W; g.fillStyle = `rgba(255,255,255,${f.a})`; g.beginPath(); g.arc(x, y, f.r, 0, TAU); g.fill(); }
+  const zr = opts.build ? BUILD_R : NO_DEPLOY;
+  const zg = g.createRadialGradient(CX, CY, zr * .6, CX, CY, zr); zg.addColorStop(0, 'rgba(0,0,0,0)'); zg.addColorStop(1, opts.deployHint ? 'rgba(255,107,94,.10)' : opts.build ? 'rgba(255,193,69,.08)' : 'rgba(255,255,255,.03)');
+  g.fillStyle = zg; g.beginPath(); g.arc(CX, CY, zr, 0, TAU); g.fill();
+  g.strokeStyle = opts.build ? 'rgba(255,193,69,.5)' : 'rgba(255,255,255,.32)'; g.lineWidth = 1.5; g.setLineDash([8, 8]); g.lineDashOffset = -clock * 10; g.beginPath(); g.arc(CX, CY, zr, 0, TAU); g.stroke(); g.setLineDash([]);
+  if (view.sunOn) {
+    g.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < 2; i++) { const p = sunPos(clock, i); const sg = g.createLinearGradient(p - 40, 0, p + 40, 0); sg.addColorStop(0, 'rgba(255,214,110,0)'); sg.addColorStop(.5, 'rgba(255,214,110,.16)'); sg.addColorStop(1, 'rgba(255,214,110,0)');
+      g.save(); g.transform(1, 0, .5, 1, 0, 0); g.fillStyle = sg; g.fillRect(p - 40, 0, 80, W); g.restore(); }
+    g.globalCompositeOperation = 'source-over';
+    for (let i = 0; i < 2; i++) { const p = sunPos(clock, i); label(g, '☀ UV', p + 44, 16, 'rgba(255,214,110,.8)'); }
+  }
+  for (const s of FX.stains) { const sg = g.createRadialGradient(s.x, s.y, 1, s.x, s.y, s.r); sg.addColorStop(0, rgba(s.col, .22)); sg.addColorStop(1, rgba(s.col, 0)); g.fillStyle = sg; g.beginPath(); g.arc(s.x, s.y, s.r, 0, TAU); g.fill(); }
+  for (const z of view.zones || []) {
+    if (z.kind === 'depot') { g.globalCompositeOperation = 'lighter'; const dg = g.createRadialGradient(z.x, z.y, 4, z.x, z.y, 55); dg.addColorStop(0, 'rgba(255,224,102,.22)'); dg.addColorStop(1, 'rgba(255,224,102,0)'); g.fillStyle = dg; g.beginPath(); g.arc(z.x, z.y, 55, 0, TAU); g.fill(); g.globalCompositeOperation = 'source-over'; g.strokeStyle = 'rgba(255,224,102,.35)'; g.lineWidth = 1; g.setLineDash([3, 5]); g.beginPath(); g.arc(z.x, z.y, 55, 0, TAU); g.stroke(); g.setLineDash([]); }
+    if (z.kind === 'spore') { const pg = g.createRadialGradient(z.x - 2, z.y - 2, 1, z.x, z.y, 9); pg.addColorStop(0, '#ffffff'); pg.addColorStop(1, '#cbb8ff'); g.fillStyle = pg; g.beginPath(); g.ellipse(z.x, z.y, 6, 8, 0, 0, TAU); g.fill(); g.strokeStyle = '#9b6bff'; g.lineWidth = 2; g.stroke(); g.globalCompositeOperation = 'lighter'; g.fillStyle = `rgba(190,160,255,${.15 + .1 * Math.sin(clock * 6)})`; g.beginPath(); g.arc(z.x, z.y, 14, 0, TAU); g.fill(); g.globalCompositeOperation = 'source-over'; }
+  }
+  const L = view.bld.filter(b => b.alive);
+  drawWalls(g, base, L.filter(b => b.type === 'wall'));
+  L.filter(b => b.type === 'turret').forEach(b => drawTurret(g, base, b, clock, view));
+  L.filter(b => b.type === 'cell').forEach(b => drawBug(g, base, b, clock));
+  L.filter(b => b.type === 'core').forEach(b => drawCore(g, base, b, clock));
+  if (!opts.build) L.forEach(b => b.type !== 'wall' && hpBar(g, b.x, b.y - b.r - 10, Math.max(22, b.r * 1.6), b.hp / b.max, '#ff6b5e'));
+  if (view.cdCloud) {
+    const c = view.cdCloud;
+    for (let i = 0; i < 5; i++) { const a = clock * .8 + i * 1.3, x = c.x + Math.cos(a) * 18, y = c.y + Math.sin(a * 1.3) * 14; const cg = g.createRadialGradient(x, y, 4, x, y, 46); cg.addColorStop(0, 'rgba(150,170,60,.4)'); cg.addColorStop(1, 'rgba(150,170,60,0)'); g.fillStyle = cg; g.beginPath(); g.arc(x, y, 46, 0, TAU); g.fill(); }
+    label(g, 'C. DIFF', c.x, c.y + 4, '#e6f2a0');
+  }
+  for (const t of view.troops || []) if (t.alive !== false) drawTroop(g, t, clock);
+  g.globalCompositeOperation = 'lighter';
+  for (const b of FX.beams) {
+    const a = b.life / b.max; g.lineCap = 'round';
+    const path = () => { g.beginPath(); g.moveTo(b.x1, b.y1); if (b.zig) { const n = 6; for (let i = 1; i < n; i++) { const f = i / n; g.lineTo(b.x1 + (b.x2 - b.x1) * f + (Math.random() - .5) * 10, b.y1 + (b.y2 - b.y1) * f + (Math.random() - .5) * 10); } } g.lineTo(b.x2, b.y2); };
+    g.strokeStyle = rgba(b.col, .35 * a); g.lineWidth = 7; path(); g.stroke();
+    g.strokeStyle = `rgba(255,255,255,${.9 * a})`; g.lineWidth = 1.6; path(); g.stroke();
+  }
+  for (const p of FX.proj) {
+    for (let i = 0; i < p.trail.length; i++) { const [x, y] = p.trail[i]; g.fillStyle = rgba(p.col, i / p.trail.length * .4); g.beginPath(); g.arc(x, y, 2 + i * .4, 0, TAU); g.fill(); }
+    const pg = g.createRadialGradient(p.x, p.y, 1, p.x, p.y, 9); pg.addColorStop(0, '#ffffff'); pg.addColorStop(.4, p.col); pg.addColorStop(1, rgba(p.col, 0));
+    g.fillStyle = pg; g.beginPath(); g.arc(p.x, p.y, 9, 0, TAU); g.fill();
+  }
+  for (const r of FX.rings) { const f = 1 - r.life / r.max, rad = r.r0 + (r.r1 - r.r0) * (1 - Math.pow(1 - f, 2)); g.strokeStyle = rgba(r.col, (1 - f) * .8); g.lineWidth = r.w * (1 - f) + .5; g.beginPath(); g.arc(r.x, r.y, rad, 0, TAU); g.stroke(); }
+  for (const p of FX.parts) { if (p.frag) continue; const a = Math.max(0, p.life / p.max); g.fillStyle = rgba(p.col, a); g.beginPath(); g.arc(p.x, p.y, p.r * a + .5, 0, TAU); g.fill(); }
+  g.globalCompositeOperation = 'source-over';
+  for (const p of FX.parts) { if (!p.frag) continue; const a = Math.max(0, p.life / p.max); g.save(); g.translate(p.x, p.y); g.rotate(p.rot); g.globalAlpha = a; g.fillStyle = p.col.startsWith('#') ? p.col : p.col; g.beginPath(); g.ellipse(0, 0, p.r, p.r * .6, 0, 0, TAU); g.fill(); g.restore(); }
+  g.globalAlpha = 1;
+  if (opts.ghostItem) drawGhostItem(g, base, opts.ghostItem, clock);
+  g.textAlign = 'center';
+  for (const f of FX.floats) {
+    const sc = Math.min(1, f.t * 6), a = Math.min(1, 1.9 - f.t);
+    g.save(); g.translate(clamp(f.x, 90, W - 90), f.y); g.scale(.6 + .4 * sc, .6 + .4 * sc); g.globalAlpha = a;
+    g.font = '700 13px "Atkinson Hyperlegible", sans-serif'; g.lineWidth = 4; g.strokeStyle = 'rgba(10,6,18,.9)'; g.strokeText(f.txt, 0, 0); g.fillStyle = f.col; g.fillText(f.txt, 0, 0); g.restore();
+  }
+  g.restore();
+  const vg = g.createRadialGradient(CX, CY, 230, CX, CY, 440); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.6)');
+  g.fillStyle = vg; g.fillRect(0, 0, W, W);
+  g.strokeStyle = 'rgba(255,255,255,.35)'; g.lineWidth = 2; g.beginPath(); g.moveTo(22, W - 22); g.lineTo(82, W - 22); g.moveTo(22, W - 26); g.lineTo(22, W - 18); g.moveTo(82, W - 26); g.lineTo(82, W - 18); g.stroke();
+  label(g, '5 µm', 52, W - 30, 'rgba(255,255,255,.55)');
+  label(g, '1000× · oil immersion', W - 70, W - 18, 'rgba(255,255,255,.35)');
+}
+function drawGhostItem(g, base, it, clock) {
+  const fake = mkB(base, it.t, it.x, it.y, 999);
+  g.globalAlpha = it.ok ? .65 : .4;
+  if (it.t === 4) drawWalls(g, base, [fake]); else if (it.t === 1) drawBug(g, base, fake, clock); else drawTurret(g, base, fake, clock, { effluxBoostT: 0 });
+  g.globalAlpha = 1;
+  if (!it.ok) { g.strokeStyle = '#ff6b5e'; g.lineWidth = 2; g.beginPath(); g.arc(it.x, it.y, fake.r + 5, 0, TAU); g.stroke(); }
+}
+function thumb(canvas, base) {
+  const px = 2; canvas.width = 240 * px; canvas.height = 120 * px; const g = canvas.getContext('2d');
+  g.scale(px, px); g.drawImage(tissueFor(base), 360, 480, 480, 240, 0, 0, 240, 120);
+  const bugs = [[52, 64], [96, 44], [140, 72], [184, 50], [116, 96], [212, 92]];
+  const [r] = cellStats(base);
+  bugs.forEach(([x, y], i) => drawBug(g, base, { x, y, r: r * 1.25, ang: i * 1.1, phase: i, hp: 1, max: 1, staticT: 0, dormT: 0, hitT: 0 }, 0));
+  const vg = g.createLinearGradient(0, 0, 0, 120); vg.addColorStop(.6, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.45)'); g.fillStyle = vg; g.fillRect(0, 0, 240, 120);
+}
+
+/* ================= App state ================= */
+let mode = 'menu';           // menu | solo | build | vsAttack | vsWatch | idle
+let base = BASES[0], army = {}, armies = {}, sim = null, view = null, sel = null, lastT = 0, buildState = null;
+const screens = ['#s-menu', '#s-rx', '#s-end', '#s-lobby', '#s-wait', '#s-pick', '#s-round', '#s-final'];
+function show(id) { screens.forEach(s => $(s).hidden = s !== id); }
+function idleView() { const b = base; return { base: b, bld: makeBuildings(b, classicLayout(b)), troops: [], zones: [], clock: 0, troopById: () => null }; }
+
+/* ---------------- Menus ---------------- */
+function renderBaseCards(container, onPick, solo) {
+  container.innerHTML = BASES.map(b => `
+    <button class="base-card" type="button" data-id="${b.id}"><canvas aria-hidden="true"></canvas><div class="bc">
+      <div class="row1"><span class="gram ${b.gram}">${b.gram === 'pos' ? 'Gram +' : b.gram === 'neg' ? 'Gram −' : 'No wall'}</span>${solo ? `<span class="best" aria-label="${bests[b.id] || 0} stars">${starStr(bests[b.id] || 0)}</span>` : ''}</div>
+      <h3>${b.name}</h3><p><i>${b.bug}</i></p><p>${solo ? 'Power: ' + b.power : 'Live power: ' + b.vpower + '. ' + b.vpowerTxt}</p></div>
+    </button>`).join('');
+  container.querySelectorAll('.base-card').forEach(el => { thumb(el.querySelector('canvas'), baseById(el.dataset.id)); el.onclick = () => onPick(baseById(el.dataset.id)); });
+}
+function renderMenu() { renderBaseCards($('#bases'), b => openRx(b, false), true); }
+$('#m-solo').onclick = () => $('#bases').scrollIntoView({ behavior: 'smooth', block: 'start' });
+$('#m-vs').onclick = () => openLobby();
+
+function used() { return ORDER.reduce((s, k) => s + (army[k] || 0) * DRUGS[k].cost, 0); }
+let rxVersus = false;
+function openRx(b, versus) {
+  base = b; rxVersus = versus; army = Object.assign({}, armies[b.id] || {});
+  $('#rx-back').hidden = versus;
+  $('#rx-note').textContent = versus ? 'Your opponent is building this colony right now.' : '';
+  $('#go').textContent = versus ? 'Ready to attack' : 'Start attack';
+  $('#rx-case').innerHTML = `
+    <span class="kicker">${b.name}</span>
+    <h2 style="font-size:1.6rem"><i>${b.bug}</i></h2>
+    <p>${b.case}</p>
+    <div class="chips"><span class="chip gram ${b.gram}">${b.gramTxt}</span>${b.clues.map(c => `<span class="chip">${c}</span>`).join('')}</div>
+    <p class="power"><b>Colony power · ${b.power}.</b> ${b.powerTxt}${versus ? `<br><b>Live power (twice) · ${b.vpower}.</b> ${b.vpowerTxt}` : ''}</p>`;
+  $('#drugs').innerHTML = ORDER.map(k => { const d = DRUGS[k]; return `
+    <div class="drug">
+      <div class="head"><span class="pill" style="background:linear-gradient(90deg, #f7f4ff 50%, ${d.col} 50%)"></span><div><h3>${d.short || d.name}</h3><div class="cls">${d.cls}</div></div><span class="cost">${d.cost} slot${d.cost > 1 ? 's' : ''}</span></div>
+      <p class="line pw"><b>Power · ${d.power}.</b> ${d.powerTxt}</p>
+      <p class="line ft"><b>Fault · ${d.fault}.</b> ${d.faultTxt}</p>
+      <div class="step"><button type="button" id="m-${k}" aria-label="Remove ${d.name}">−</button><b id="n-${k}">0</b><button type="button" id="p-${k}" aria-label="Add ${d.name}">+</button></div>
+    </div>`; }).join('');
+  ORDER.forEach(k => {
+    $('#m-' + k).onclick = () => { army[k] = Math.max(0, (army[k] || 0) - 1); updRx(); };
+    $('#p-' + k).onclick = () => { if (used() + DRUGS[k].cost <= CAPACITY) { army[k] = (army[k] || 0) + 1; updRx(); } };
+  });
+  updRx(); show('#s-rx'); $('#s-rx').scrollTop = 0;
+  if (!versus) { mode = 'menu'; view = idleView(); }
+}
+function updRx() {
+  const u = used();
+  ORDER.forEach(k => { $('#n-' + k).textContent = army[k] || 0; $('#m-' + k).disabled = !army[k]; $('#p-' + k).disabled = u + DRUGS[k].cost > CAPACITY; });
+  $('#cap-i').style.width = (u / CAPACITY * 100) + '%'; $('#cap-n').textContent = u + ' / ' + CAPACITY;
+  $('#go').disabled = u === 0;
+}
+$('#rx-back').onclick = () => { renderMenu(); show('#s-menu'); };
+$('#go').onclick = () => { armies[base.id] = Object.assign({}, army); if (rxVersus) vsReadyAttack(); else startSolo(); };
+$('#e-retry').onclick = () => openRx(base, false);
+$('#e-menu').onclick = () => { renderMenu(); show('#s-menu'); };
+
+/* ---------------- Solo battle ---------------- */
+function startSolo() {
+  fxReset();
+  sim = new Sim(base, classicLayout(base), army);
+  sim.onEvent = (k, a) => fxHandle(sim, k, a);
+  sim.onEnd = () => endSolo();
+  view = sim; mode = 'solo';
+  sel = ORDER.find(k => sim.remaining[k] > 0) || null;
+  show(null); $('#hud').hidden = false; $('#timebar').hidden = false; $('#h-time-l').textContent = 'Time';
+  renderDeployTray(); updHud(); resize();
+}
+function renderDeployTray() {
+  const keys = ORDER.filter(k => sim.army[k] > 0);
+  $('#tray').innerHTML = keys.map(k => { const d = DRUGS[k]; return `<button class="tbtn" type="button" data-k="${k}" aria-pressed="${sel === k}" ${sim.remaining[k] ? '' : 'disabled'}>
+      <span class="pill" style="background:linear-gradient(90deg, #f7f4ff 50%, ${d.col} 50%)"></span><b>${d.short || d.name}</b><small>${d.tag}</small><span class="count">${sim.remaining[k]}</span></button>`; }).join('')
+    + `<span class="tray-note">Tap outside the dashed circle to deploy</span>`;
+  document.querySelectorAll('#tray .tbtn').forEach(b => b.onclick = () => { sel = b.dataset.k; renderDeployTray(); });
+}
+function updHud() {
+  if (!view || !view.bld) return;
+  const pct = view.pct ? view.pct() : view.pc || 0, st = view.stars ? view.stars() : view.st || 0, tl = view.timeLeft ?? BATTLE_TIME;
+  $('#h-pct').textContent = pct + '%';
+  $('#h-time').textContent = fmtTime(tl);
+  $('#timebar-i').style.width = clamp(tl / BATTLE_TIME * 100, 0, 100) + '%';
+  $('#h-stars').innerHTML = starStr(st);
+  const fl = view.flora ?? 100;
+  $('#h-flora').style.width = Math.max(0, fl) + '%';
+  $('#h-flora').style.background = fl > 50 ? 'var(--good)' : fl > 20 ? 'var(--gold)' : 'var(--bad)';
+}
+function covRows(b, arm) {
+  return ORDER.map(k => {
+    const [m, why] = b.cov[k]; const [lab, cls] = m >= 1.1 ? ['Strong', 's'] : m >= .7 ? ['Good', 'g'] : m >= .3 ? ['Weak', 'w'] : m > 0 ? ['Minimal', 'n'] : ['None', 'n'];
+    return `<tr><td><b>${DRUGS[k].short || DRUGS[k].name}</b>${arm && arm[k] ? ` <span style="color:var(--muted)">· sent ${arm[k]}</span>` : ''}</td><td class="lvl ${cls}">${lab}</td><td>${why}</td></tr>`;
+  }).join('');
+}
+function endSolo() {
+  mode = 'idle';
+  const st = sim.stars(), pct = sim.pct();
+  if (st > (bests[base.id] || 0)) { bests[base.id] = st; store.set('colonySiegeBests', bests); }
+  $('#hud').hidden = true; $('#timebar').hidden = true; $('#tray').innerHTML = '';
+  $('#e-kicker').textContent = base.name + ' · ' + base.bug;
+  $('#e-stars').innerHTML = starStr(st);
+  $('#e-pct').textContent = pct + '% of the colony destroyed';
+  $('#e-line').textContent = st === 3 ? 'Infection cleared. Clean kill.' : st === 2 ? 'Mostly controlled, but some bacteria survived.' : st === 1 ? 'Partial response. The infection is hanging on.' : 'Treatment failure. Check your coverage below.';
+  const notes = [], log = sim.log;
+  const weak = ORDER.filter(k => army[k] && base.cov[k][0] < .3);
+  if (weak.length) notes.push(['', `<b>No coverage:</b> ${weak.map(k => DRUGS[k].short || DRUGS[k].name).join(', ')} barely touched ${base.bug}.`]);
+  if (log.blact) notes.push(['', `<b>β-lactamase</b> hydrolyzed amoxicillin ${log.blact} time${log.blact > 1 ? 's' : ''}. A β-lactamase inhibitor (like tazobactam or clavulanate) protects it.`]);
+  if (log.rash) notes.push(['', `<b>Rash:</b> ${log.rash} amoxicillin unit${log.rash > 1 ? 's' : ''} had a hypersensitivity reaction.`]);
+  if (log.flush) notes.push(['', `<b>Vancomycin infusion reaction</b> ${log.flush} time${log.flush > 1 ? 's' : ''}. In practice, infuse over at least 60 minutes.`]);
+  if (log.tendon) notes.push(['', `<b>Tendon rupture:</b> ${log.tendon} ciprofloxacin unit${log.tendon > 1 ? 's' : ''} went lame. Fluoroquinolones carry a boxed warning for tendinitis and rupture.`]);
+  if (log.qt) notes.push(['', `<b>QT stacking:</b> azithromycin froze ${log.qt} time${log.qt > 1 ? 's' : ''} with ciprofloxacin on the field. Both prolong the QT interval.`]);
+  if (log.sun) notes.push(['', `<b>Photosensitivity:</b> ${log.sun} doxycycline unit${log.sun > 1 ? 's' : ''} got sunburned. Counsel on sunscreen and limiting sun.`]);
+  if (log.cdiff) notes.push(['', `<b>C. diff superinfection:</b> broad-spectrum drugs wiped out the gut flora. This is why stewardship picks the narrowest drug that works.`]);
+  if (!notes.length) notes.push(['ok', '<b>No adverse events this time.</b>']);
+  $('#e-notes').innerHTML = notes.map(([c, h]) => `<div class="${c}">${h}</div>`).join('');
+  $('#e-first').innerHTML = `<b>Real-world first-line:</b> ${base.first}`;
+  $('#e-cov').innerHTML = covRows(base, army);
+  setTimeout(() => { show('#s-end'); $('#s-end').scrollTop = 0; }, 700);
+}
+
+/* ---------------- Canvas input ---------------- */
+function worldPt(e) { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left) / r.width * W, (e.clientY - r.top) / r.height * W]; }
+let painting = false;
+cv.addEventListener('pointerdown', e => {
+  const [x, y] = worldPt(e);
+  if (mode === 'solo' || mode === 'vsAttack') {
+    e.preventDefault();
+    if (!sim || sim.over) return;
+    if (!sel || !sim.remaining[sel]) { fxHandle(sim, 'f', [x, y, 'Pick a drug in the tray', '#ffc145']); return; }
+    if (Math.hypot(x - CX, y - CY) < NO_DEPLOY) { fxHandle(sim, 'f', [x, y, 'Deploy outside the circle', '#ff6b5e']); return; }
+    sim.deploy(sel, clamp(x, 8, W - 8), clamp(y, 8, W - 8));
+    if (!sim.remaining[sel]) sel = ORDER.find(o => sim.remaining[o] > 0) || null;
+    renderDeployTray(); updHud();
+  } else if (mode === 'build') {
+    e.preventDefault(); painting = true; try { cv.setPointerCapture(e.pointerId); } catch (err) {}
+    buildState.hover = [x, y]; buildAt(x, y, true);
+  }
+});
+cv.addEventListener('pointermove', e => {
+  if (mode !== 'build' || !buildState) return;
+  const [x, y] = worldPt(e);
+  buildState.hover = [x, y];
+  if (painting && (buildState.tool === 4 || buildState.tool === 'erase')) buildAt(x, y, false);
+});
+cv.addEventListener('pointerup', () => { painting = false; });
+cv.addEventListener('pointerleave', () => { if (buildState) buildState.hover = null; });
+
+/* ================= Versus ================= */
+const VS = { room: null, user: null, r: null, code: '', seat: null, my: {}, opp: null, oppName: 'Opponent', ghost: null, ghostKey: '', simKey: '', phaseKey: '', lastSnapAt: 0, pwCool: 0, buildEnd: 0, unsub: [] };
+let roomP = null;
+function getRoom() {
+  if (!roomP) roomP = (async () => {
+    try {
+      if (!window.claude || typeof window.claude.use !== 'function') return null;
+      const r = await window.claude.use('room');
+      try { VS.user = await window.claude.use('user'); } catch (e) { VS.user = null; }
+      return r;
+    } catch (e) { return null; }
+  })();
+  return roomP;
+}
+async function openLobby() {
+  show('#s-lobby'); $('#lb-ready').hidden = true; $('#lb-unavail').hidden = true; $('#lb-err').textContent = '';
+  const r = await getRoom();
+  VS.room = r;
+  if (!r) {
+    $('#lb-unavail').hidden = false;
+    let inFrame = true; try { inFrame = !window.claude; } catch (e) {}
+    $('#lb-unavail-txt').textContent = inFrame
+      ? 'Inside the arcade, games run in an embedded frame that can’t connect to other players. Open Colony Siege on its own page to play versus.'
+      : 'This view can’t connect to other players. Make sure you’re signed in to Claude and opened the page from its claude.ai link, not a public link.';
+    $('#lb-standalone').innerHTML = STANDALONE_URL ? `<a class="cta" style="text-decoration:none" href="${STANDALONE_URL}" target="_blank" rel="noopener">Open Colony Siege</a>` : '';
+    return;
+  }
+  $('#lb-ready').hidden = false;
+}
+$('#lb-back').onclick = () => { renderMenu(); show('#s-menu'); };
+$('#lb-create').onclick = () => { const A = 'abcdefghjkmnpqrstuvwxyz23456789'; let c = ''; for (let i = 0; i < 5; i++) c += A[Math.floor(Math.random() * A.length)]; joinMatch(c, 'p1'); };
+$('#lb-join').onclick = () => { const c = $('#lb-code').value.trim().toLowerCase(); if (!/^[a-z0-9]{5}$/.test(c)) { $('#lb-err').textContent = 'Codes are 5 letters and numbers.'; return; } joinMatch(c, null); };
+$('#lb-code').addEventListener('keydown', e => { if (e.key === 'Enter') $('#lb-join').click(); });
+
+async function joinMatch(code, seat) {
+  $('#lb-err').textContent = '';
+  let r;
+  try { r = await VS.room.join('cs-' + code); } catch (e) { $('#lb-err').textContent = e && e.code === 'not_permitted' ? 'This view can’t join matches.' : 'Couldn’t join. Check the code and try again.'; return; }
+  VS.r = r; VS.code = code; VS.my = { app: 'cs1', m: 0, cont: 0 }; VS.oppName = 'Opponent'; VS.phaseKey = ''; buildState = null; VS.simKey = ''; VS.ghostKey = '';
+  let uid = null; try { uid = VS.user ? await VS.user.id() : null; } catch (e) {}
+  VS.my.uid = uid;
+  if (!seat) {
+    wait('Joining match…', '', false);
+    await new Promise(res => setTimeout(res, 1500));
+    const others = r.peers().filter(p => !p.sameTab && p.presence && p.presence.app === 'cs1');
+    const has = s => others.some(p => p.presence.seat === s);
+    seat = !has('p1') ? 'p1' : !has('p2') ? 'p2' : null;
+    if (!seat) { try { await r.leave(); } catch (e) {} VS.r = null; show('#s-lobby'); $('#lb-err').textContent = 'That match already has two players.'; return; }
+  }
+  VS.seat = seat; VS.my.seat = seat;
+  await setP(VS.my);
+  VS.unsub.push(r.onPeers(() => vsTick()));
+  VS.unsub.push(r.onConnection(c => { $('#net').hidden = c; }));
+  vsTick();
+}
+async function setP(patch) { Object.assign(VS.my, patch); for (const k in patch) if (patch[k] === null) delete VS.my[k]; try { await VS.r.presence(patch); } catch (e) {} }
+async function leaveMatch() {
+  VS.unsub.forEach(u => { try { u(); } catch (e) {} }); VS.unsub = [];
+  if (VS.r) { try { await VS.r.leave(); } catch (e) {} }
+  VS.r = null; VS.seat = null; VS.phaseKey = ''; sim = null; VS.ghost = null; mode = 'menu'; view = idleView();
+  $('#vsbadge').hidden = true; $('#hud').hidden = true; $('#timebar').hidden = true; $('#tray').innerHTML = ''; $('#banner').hidden = true; $('#net').hidden = true;
+  renderMenu(); show('#s-menu');
+}
+$('#w-leave').onclick = leaveMatch; $('#f-leave').onclick = leaveMatch;
+
+function oppPeer() { if (!VS.r) return null; const other = VS.seat === 'p1' ? 'p2' : 'p1'; return VS.r.peers().find(p => !p.sameTab && p.presence && p.presence.app === 'cs1' && p.presence.seat === other) || null; }
+const defSeat = r => r === 1 ? 'p1' : 'p2';
+const valid = (o, m, r) => !!o && o.m === m && o.r === r;
+function resolveNames() {
+  const opp = VS.opp; if (!VS.user || !opp) return;
+  const id = opp.by || (opp.presence && opp.presence.uid); if (!id) return;
+  VS.user.profiles([id]).then(ps => { const n = ps[id] && ps[id].name; if (n && n !== VS.oppName) { VS.oppName = n; VS.phaseKey = ''; vsTick(); } }).catch(() => {});
+}
+function vsState() {
+  const opp = oppPeer(); VS.opp = opp;
+  const me = VS.my, op = opp ? opp.presence : null;
+  if (!opp) return { phase: 'alone' };
+  const m = me.m || 0;
+  if ((op.m || 0) !== m) return { phase: 'rematch', theirs: op.m || 0 };
+  const round = 1 + Math.min(me.cont || 0, op.cont || 0);
+  if (round > 2) return { phase: 'final', m };
+  const iDefend = defSeat(round) === VS.seat;
+  const myRes = (me.res || []).find(x => x.m === m && x.r === round), opRes = (op.res || []).find(x => x.m === m && x.r === round);
+  const res = iDefend ? opRes : myRes;
+  if (res) return { phase: 'roundover', m, round, iDefend, res, waitingCont: (me.cont || 0) >= round };
+  if (iDefend) {
+    const d = valid(me.def, m, round) ? me.def : null;
+    if (!d) return { phase: 'pick', m, round, iDefend };
+    if (!d.locked) return { phase: 'build', m, round, iDefend, inf: d.inf };
+    const snap = valid(op.snap, m, round) ? op.snap : null;
+    if (snap) return { phase: 'watch', m, round, iDefend, inf: d.inf, snap };
+    return { phase: 'waitAtk', m, round, iDefend, inf: d.inf, atkReady: valid(op.atk, m, round) && op.atk.ready };
+  } else {
+    const d = valid(op.def, m, round) ? op.def : null;
+    if (!d) return { phase: 'waitInf', m, round, iDefend };
+    if (!(valid(me.atk, m, round) && me.atk.ready)) return { phase: 'rx', m, round, iDefend, inf: d.inf };
+    if (!d.locked) return { phase: 'waitLock', m, round, iDefend, inf: d.inf };
+    return { phase: 'battle', m, round, iDefend, inf: d.inf, layout: d.layout };
+  }
+}
+function badge(st) {
+  const b = $('#vsbadge'); b.hidden = false;
+  if (!st.round) { b.textContent = 'Versus · code ' + VS.code.toUpperCase(); b.className = 'vsbadge'; return; }
+  b.textContent = `vs ${VS.oppName} · Round ${st.round}/2 · ${st.iDefend ? 'You defend' : 'You attack'}`;
+  b.className = 'vsbadge' + (st.iDefend ? '' : ' atk');
+}
+function wait(title, txt, showCode) {
+  show('#s-wait'); $('#w-title').textContent = title; $('#w-txt').textContent = txt;
+  $('#w-code-box').hidden = !showCode; $('#w-code').textContent = VS.code.toUpperCase();
+}
+function vsTick() {
+  if (!VS.r) return;
+  const st = vsState();
+  if (VS.opp && VS.oppName === 'Opponent') resolveNames();
+  if (st.phase === 'watch') { ensureGhost(st); VS.ghost.apply(st.snap); }
+  if (st.phase === 'battle') ensureAttack(st);
+  const key = [st.phase, st.m, st.round, st.inf, st.waitingCont, st.atkReady, VS.oppName, st.theirs].join('|');
+  if (key === VS.phaseKey) return;
+  VS.phaseKey = key;
+  badge(st);
+  $('#banner').hidden = true;
+  if (st.phase !== 'build' && mode === 'build') { mode = 'idle'; }
+  if (!['battle', 'watch', 'build'].includes(st.phase)) { $('#hud').hidden = true; $('#timebar').hidden = true; $('#tray').innerHTML = ''; if (mode === 'vsWatch') mode = 'idle'; }
+  switch (st.phase) {
+    case 'alone': return wait('Waiting for your opponent', 'Send them the code below. They open this page, choose Versus, and join with it.', true);
+    case 'rematch': {
+      if ((VS.my.m || 0) < st.theirs) { show('#s-final'); $('#f-note').textContent = `${VS.oppName} wants a rematch.`; $('#f-rematch').textContent = 'Accept rematch'; return; }
+      return wait('Rematch requested', `Waiting for ${VS.oppName} to accept.`, false);
+    }
+    case 'pick': base = BASES[0]; view = idleView(); mode = 'idle'; $('#pk-k').textContent = `Round ${st.round} · You defend`; renderBaseCards($('#pk-bases'), b => vsPickInfection(b), false); show('#s-pick'); $('#s-pick').scrollTop = 0; return;
+    case 'build': return startBuild(st);
+    case 'waitAtk': return wait('Colony locked in', st.atkReady ? `${VS.oppName} is about to attack.` : `${VS.oppName} is still choosing antibiotics.`, false);
+    case 'watch': return startWatch(st);
+    case 'waitInf': base = BASES[0]; view = idleView(); mode = 'idle'; return wait(`${VS.oppName} is choosing an infection`, 'You attack this round. As soon as they pick, you’ll see the case and choose your antibiotics.', false);
+    case 'rx': return openRx(baseById(st.inf), true);
+    case 'waitLock': base = baseById(st.inf); view = idleView(); mode = 'idle'; return wait('Antibiotics ready', `${VS.oppName} is still building the colony.`, false);
+    case 'battle': return;
+    case 'roundover': return showRound(st);
+    case 'final': return showFinal(st);
+  }
+}
+setInterval(() => { if (VS.r) vsTick(); }, 500);
+
+/* --- Defender: pick + build --- */
+function vsPickInfection(b) { const st = vsState(); if (st.phase !== 'pick') return; setP({ def: { m: st.m, r: st.round, inf: b.id, locked: false }, atk: null, snap: null, pw: null }); vsTick(); }
+function startBuild(st) {
+  base = baseById(st.inf); show(null); mode = 'build'; fxReset();
+  const key = st.m + '-' + st.round + '-' + st.inf;
+  if (!buildState || buildState.key !== key) { buildState = { key, layout: autoLayout(base), tool: 1, hover: null }; VS.buildEnd = performance.now() + BUILD_TIME * 1000; }
+  refreshBuildView(); renderBuildTray();
+  $('#hud').hidden = false; $('#timebar').hidden = false; $('#h-time-l').textContent = 'Build';
+  $('#banner').hidden = false; $('#banner').textContent = `Build your ${base.name.toLowerCase()} colony · tap to place, drag walls`;
+  resize();
+}
+function refreshBuildView() { const c = view ? view.clock : 0; view = { base, bld: makeBuildings(base, buildState.layout), troops: [], zones: [], clock: c, troopById: () => null, timeLeft: BATTLE_TIME, flora: base.flora, pc: 0, st: 0 }; }
+function renderBuildTray() {
+  const L = buildState.layout, cost = layoutCost(L), left = BUDGET - cost;
+  const count = t => L.filter(e => e[0] === t).length;
+  const tools = [[1, 'Bacteria', COST[1]], [2, 'Toxin tower', COST[2]]];
+  if (base.special) tools.push([3, base.special === 'blact' ? 'β-lactamase' : 'Efflux pump', COST[3]]);
+  tools.push([4, 'Wall · drag', COST[4]], ['erase', 'Erase', 0]);
+  $('#tray').innerHTML = `<div class="budget"><span>Colony points <b>${left}</b> / ${BUDGET}</span><div class="bar"><i style="width:${left / BUDGET * 100}%"></i></div></div>`
+    + tools.map(([t, n, c]) => { const capped = LIMIT[t] && count(t) >= LIMIT[t]; return `<button class="tbtn" type="button" data-t="${t}" aria-pressed="${buildState.tool === t}" ${capped && buildState.tool !== t ? 'disabled' : ''}><b>${n}</b><small>${t === 'erase' ? 'refunds points' : c + ' pt' + (c > 1 ? 's' : '')}${LIMIT[t] ? ` · ${count(t)}/${LIMIT[t]}` : ''}</small></button>`; }).join('')
+    + `<button class="tbtn" type="button" id="bt-auto"><b>Classic layout</b><small>auto-build</small></button>`
+    + `<button class="tbtn" type="button" id="bt-clear"><b>Clear</b><small>keeps the core</small></button>`
+    + `<button class="tbtn go big" type="button" id="bt-lock"><b>Lock in colony</b><small>${count(1)} bacteria · ${count(2) + count(3)} towers · ${count(4)} walls</small></button>`;
+  document.querySelectorAll('#tray .tbtn[data-t]').forEach(b => b.onclick = () => { const v = b.dataset.t; buildState.tool = v === 'erase' ? 'erase' : +v; renderBuildTray(); });
+  $('#bt-auto').onclick = () => { buildState.layout = autoLayout(base); refreshBuildView(); renderBuildTray(); };
+  $('#bt-clear').onclick = () => { buildState.layout = [[0, CX, CY]]; refreshBuildView(); renderBuildTray(); };
+  $('#bt-lock').onclick = () => lockColony();
+}
+function canPlace(t, x, y) {
+  const L = buildState.layout;
+  if (Math.hypot(x - CX, y - CY) > BUILD_R) return false;
+  if (layoutCost(L) + COST[t] > BUDGET) return false;
+  if (LIMIT[t] && L.filter(e => e[0] === t).length >= LIMIT[t]) return false;
+  const r = mkB(base, t, x, y, 0).r;
+  return !L.some(e => { const o = mkB(base, e[0], e[1], e[2], 0); return Math.hypot(o.x - x, o.y - y) < o.r + r + (t === 4 && e[0] === 4 ? -2 : 3); });
+}
+function buildAt(x, y, click) {
+  const tool = buildState.tool, L = buildState.layout;
+  if (tool === 'erase') {
+    let bi = -1, bd = 1e9; L.forEach((e, i) => { if (e[0] === 0) return; const d = Math.hypot(e[1] - x, e[2] - y); if (d < bd) { bd = d; bi = i; } });
+    if (bi >= 0 && bd < 22) { sparks(L[bi][1], L[bi][2], '#ff6b5e', 8, 80); L.splice(bi, 1); refreshBuildView(); renderBuildTray(); }
+    return;
+  }
+  if (!click && tool !== 4) return;
+  if (canPlace(tool, x, y)) { L.push([tool, Math.round(x), Math.round(y)]); refreshBuildView(); renderBuildTray(); FX.rings.push({ x, y, r0: 4, r1: 24, col: '#ffc145', life: .4, max: .4, w: 3 }); }
+  else if (click) fxHandle(view, 'f', [Math.round(x), Math.round(y), Math.hypot(x - CX, y - CY) > BUILD_R ? 'Build inside the circle' : layoutCost(L) + COST[tool] > BUDGET ? 'Out of colony points' : 'No room there', '#ff6b5e']);
+}
+function lockColony() {
+  if (mode !== 'build') return;
+  const st = vsState(); if (st.phase !== 'build') return;
+  mode = 'idle'; $('#tray').innerHTML = '';
+  setP({ def: { m: st.m, r: st.round, inf: base.id, locked: true, layout: buildState.layout } }); vsTick();
+}
+
+/* --- Attacker: prescribe + battle --- */
+function vsReadyAttack() { const st = vsState(); if (st.phase !== 'rx') return; setP({ atk: { m: st.m, r: st.round, ready: true, army: Object.assign({}, army) }, def: null, pw: null }); vsTick(); }
+function ensureAttack(st) {
+  const key = st.m + '-' + st.round;
+  if (VS.simKey === key && sim) return;
+  VS.simKey = key; base = baseById(st.inf); fxReset();
+  const arm = (VS.my.atk && VS.my.atk.army) || army;
+  sim = new Sim(base, st.layout, arm, { timerNow: true });
+  sim.onEvent = (k, a) => fxHandle(sim, k, a);
+  sim.onEnd = () => {
+    const res = { m: st.m, r: st.round, st: sim.stars(), pc: sim.pct(), t: Math.round((BATTLE_TIME - Math.max(0, sim.timeLeft)) * 10) / 10, inf: base.id, army: arm };
+    const list = (VS.my.res || []).filter(x => !(x.m === st.m && x.r === st.round)).concat([res]).slice(-4);
+    mode = 'idle';
+    setP({ res: list, snap: Object.assign(sim.snapshot(), { m: st.m, r: st.round }) }); vsTick();
+  };
+  view = sim; mode = 'vsAttack'; sel = ORDER.find(k => sim.remaining[k] > 0) || null;
+  show(null); $('#hud').hidden = false; $('#timebar').hidden = false; $('#h-time-l').textContent = 'Time';
+  $('#banner').hidden = false; $('#banner').textContent = `Attack ${VS.oppName}’s ${base.name.toLowerCase()} colony`;
+  setTimeout(() => { if (mode === 'vsAttack') $('#banner').hidden = true; }, 3500);
+  renderDeployTray(); updHud(); resize();
+}
+function pumpAttack() {
+  if (mode !== 'vsAttack' || !sim || !VS.r) return;
+  const st = vsState(); if (st.phase !== 'battle') return;
+  const op = VS.opp && VS.opp.presence;
+  if (op && valid(op.pw, st.m, st.round)) while (sim.pwApplied < Math.min(2, op.pw.n || 0)) sim.applyPower();
+  const now = performance.now();
+  if (now - VS.lastSnapAt > 110) { VS.lastSnapAt = now; VS.r.presence({ snap: Object.assign(sim.snapshot(), { m: st.m, r: st.round }) }).catch(() => {}); }
+}
+
+/* --- Defender: watch the attack --- */
+function ensureGhost(st) {
+  const key = st.m + '-' + st.round;
+  if (VS.ghostKey === key && VS.ghost) return;
+  VS.ghostKey = key; fxReset(); base = baseById(st.inf);
+  VS.ghost = new Ghost(base, VS.my.def.layout);
+}
+function startWatch(st) {
+  ensureGhost(st); view = VS.ghost; mode = 'vsWatch'; show(null);
+  $('#hud').hidden = false; $('#timebar').hidden = false; $('#h-time-l').textContent = 'Time';
+  $('#banner').hidden = false; $('#banner').textContent = `${VS.oppName} is attacking your colony`;
+  renderPowerTray(); resize();
+}
+function renderPowerTray() {
+  const st = vsState(); const usedN = valid(VS.my.pw, st.m, st.round) ? VS.my.pw.n : 0;
+  const left = 2 - usedN, cool = Math.max(0, VS.pwCool - performance.now());
+  const label = left > 0 ? (cool > 0 ? `recharging ${Math.ceil(cool / 1000)}s` : `${left} left · tap to fire`) : 'used up';
+  const btn = $('#pw-btn');
+  if (btn && btn.dataset.l === label) return;
+  $('#tray').innerHTML = `<button class="tbtn power big" type="button" id="pw-btn" data-l="${label}" ${left <= 0 || cool > 0 ? 'disabled' : ''}><b>${base.vpower}</b><small>${label}</small></button>
+    <span class="tray-note">${base.vpowerTxt}</span>`;
+  $('#pw-btn').onclick = () => {
+    const s = vsState(); if (s.phase !== 'watch') return;
+    const n = (valid(VS.my.pw, s.m, s.round) ? VS.my.pw.n : 0) + 1; if (n > 2) return;
+    VS.pwCool = performance.now() + 8000;
+    setP({ pw: { m: s.m, r: s.round, n } }); renderPowerTray();
+  };
+}
+
+/* --- Round and final summaries --- */
+function showRound(st) {
+  mode = 'idle'; $('#tray').innerHTML = '';
+  const r = st.res, b = baseById(r.inf);
+  $('#r-k').textContent = `Round ${st.round} of 2 · ${b.name}`;
+  $('#r-title').textContent = st.iDefend ? `${VS.oppName} attacked your colony` : 'Your attack';
+  $('#r-stars').innerHTML = starStr(r.st);
+  $('#r-pct').textContent = `${st.iDefend ? VS.oppName : 'You'} destroyed ${r.pc}% in ${r.t}s`;
+  $('#r-first').innerHTML = `<b>Real-world first-line for ${b.name.toLowerCase()}:</b> ${b.first}`;
+  $('#r-cov').innerHTML = covRows(b, r.army);
+  $('#r-cont').disabled = !!st.waitingCont; $('#r-cont').textContent = st.round === 2 ? 'See final score' : 'Next round';
+  $('#r-wait').textContent = st.waitingCont ? `Waiting for ${VS.oppName}…` : '';
+  show('#s-round');
+}
+$('#r-cont').onclick = () => { const st = vsState(); if (st.phase !== 'roundover') return; $('#r-cont').disabled = true; setP({ cont: st.round, snap: null, def: null, atk: null, pw: null }); vsTick(); };
+function showFinal(st) {
+  mode = 'idle'; $('#tray').innerHTML = '';
+  const m = st.m, myR = VS.seat === 'p1' ? 2 : 1, opR = VS.seat === 'p1' ? 1 : 2;
+  const mine = (VS.my.res || []).find(x => x.m === m && x.r === myR), theirs = ((VS.opp && VS.opp.presence.res) || []).find(x => x.m === m && x.r === opR);
+  const sc = x => x ? [x.st, x.pc, -x.t] : [-1, 0, 0];
+  const a = sc(mine), b = sc(theirs); let cmp = 0; for (let i = 0; i < 3 && !cmp; i++) cmp = Math.sign(a[i] - b[i]);
+  $('#f-title').textContent = cmp > 0 ? 'You win!' : cmp < 0 ? `${VS.oppName} wins` : 'It’s a draw';
+  const card = (who, x, win) => x ? `<div class="pcard ${win ? 'win' : ''}"><span class="who">${esc(who)}</span><span class="result-stars">${starStr(x.st)}</span><span class="sub">Attacked ${baseById(x.inf).name.toLowerCase()} · ${x.pc}% destroyed · ${x.t}s</span></div>` : '';
+  $('#f-grid').innerHTML = card('You', mine, cmp > 0) + card(VS.oppName, theirs, cmp < 0);
+  $('#f-rematch').textContent = 'Rematch'; $('#f-note').textContent = '';
+  show('#s-final');
+}
+$('#f-rematch').onclick = () => {
+  const op = VS.opp ? VS.opp.presence : null, mine = VS.my.m || 0, theirs = op ? op.m || 0 : 0;
+  const target = theirs > mine ? theirs : mine + 1;
+  buildState = null; VS.simKey = ''; VS.ghostKey = ''; sim = null; VS.ghost = null;
+  setP({ m: target, cont: 0, def: null, atk: null, snap: null, pw: null }); vsTick();
+};
+
+/* ================= Main loop ================= */
+function loop(now) {
+  const dt = Math.min(.05, (now - (lastT || now)) / 1000); lastT = now;
+  if ((mode === 'solo' || mode === 'vsAttack') && sim && !sim.over) sim.step(dt);
+  if (mode === 'vsAttack') pumpAttack();
+  if (mode === 'vsWatch' && VS.ghost) VS.ghost.step(dt);
+  if (view) {
+    if (!(view instanceof Sim) && !(view instanceof Ghost)) view.clock = (view.clock || 0) + dt;
+    else if (view instanceof Sim && view.over) view.clock += dt;
+    fxStep(view, dt);
+    const opts = { deployHint: (mode === 'solo' || mode === 'vsAttack') && !!sel, build: mode === 'build' };
+    if (mode === 'build' && buildState && buildState.hover && buildState.tool !== 'erase') { const [x, y] = buildState.hover; opts.ghostItem = { t: buildState.tool, x, y, ok: canPlace(buildState.tool, x, y) }; }
+    render(view, opts);
+  }
+  if (Math.floor(now / 250) !== Math.floor((now - dt * 1000) / 250)) {
+    if (mode === 'build') {
+      const left = (VS.buildEnd - performance.now()) / 1000;
+      $('#h-time').textContent = fmtTime(left); $('#timebar-i').style.width = clamp(left / BUILD_TIME * 100, 0, 100) + '%';
+      $('#h-pct').textContent = '0%'; $('#h-stars').innerHTML = starStr(0);
+      if (left <= 0) lockColony();
+    } else if (mode === 'vsWatch') { updHud(); renderPowerTray(); }
+    else if (mode === 'solo' || mode === 'vsAttack') updHud();
+  }
+  requestAnimationFrame(loop);
+}
+window.addEventListener('resize', resize);
+renderMenu(); show('#s-menu'); view = idleView(); resize();
+requestAnimationFrame(loop);
+if (TEST) window.__cs = { solo(id, a) { base = baseById(id); army = a; startSolo(); }, sim: () => sim, mode: () => mode, VS };
+})();
+</script>
+</body>
+</html>

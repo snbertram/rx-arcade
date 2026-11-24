@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Brand Match</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;800&family=Figtree:wght@400;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+/* Layout: a card table. Topic chips and a scoreboard on top, the face-down card grid in the middle, the matched-pair log underneath. Each topic deals cards with its own muted color. */
+:root{
+  --table:#f3efe7; --card:#fffdf9; --ink:#29262a; --muted:#77706a; --line:#e2dbcf; --line2:#cbc2b3;
+  --accent:#5d7a6b; --good:#2f7d52; --bad:#b2473a;
+  --f-display:"Playfair Display",Georgia,serif; --f-body:"Figtree",system-ui,-apple-system,"Segoe UI",sans-serif; --f-mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root{--table:#1c1b1d;--card:#262428;--ink:#efe9e1;--muted:#ada59c;--line:#37343a;--line2:#4a464e;--good:#6fcf95;--bad:#ef8a7c;color-scheme:dark}}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--table);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.5}
+.wrap{max-width:1180px;margin:0 auto;padding:24px max(16px,env(safe-area-inset-left,0px)) 48px max(16px,env(safe-area-inset-right,0px))}
+h1,h2,h3{font-family:var(--f-display);margin:0;line-height:1.1;text-wrap:balance}
+p{margin:0}
+button,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+header{display:grid;gap:8px;margin-bottom:18px}
+header h1{font-size:clamp(2rem,6vw,3.1rem);font-weight:800}
+header h1 em{font-style:italic;color:var(--accent)}
+.lead{color:var(--muted);max-width:60ch}
+.label{font-family:var(--f-mono);font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 16px}
+.chip{border:1px solid var(--line2);background:var(--card);border-radius:999px;padding:6px 13px 6px 10px;font-size:.9rem;font-weight:600;display:inline-flex;align-items:center;gap:8px}
+.chip i{width:12px;height:12px;border-radius:50%;background:var(--c)}
+.chip[aria-pressed="true"]{background:var(--c);border-color:var(--c);color:#fff}
+.chip[aria-pressed="true"] i{background:#fff}
+.bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-bottom:16px}
+.bar .left,.bar .right{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.btn{border:1px solid var(--line2);background:var(--card);border-radius:8px;padding:7px 12px;font-size:.9rem;font-weight:600}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+select.btn{padding-right:8px}
+.stat{font-family:var(--f-mono);font-size:.85rem;padding:5px 11px;border-radius:999px;background:var(--card);border:1px solid var(--line)}
+.stat b{font-weight:600}
+
+/* Cards */
+.table{display:grid;grid-template-columns:repeat(var(--cols),minmax(0,1fr));gap:12px;perspective:1200px}
+.card{position:relative;aspect-ratio:3/4;container-type:inline-size;border:0;padding:0;background:none;border-radius:14px}
+.card .in{position:absolute;inset:0;transition:transform .45s cubic-bezier(.2,.7,.3,1);transform-style:preserve-3d}
+.card.up .in,.card.done .in{transform:rotateY(180deg)}
+.face{position:absolute;inset:0;border-radius:14px;backface-visibility:hidden;-webkit-backface-visibility:hidden;display:grid;place-items:center;padding:10px;overflow:hidden;box-shadow:0 6px 14px -10px rgba(40,30,20,.55)}
+.back{background:
+  radial-gradient(circle at 50% 50%,rgba(255,255,255,.16) 0 22%,transparent 23%),
+  repeating-linear-gradient(45deg,rgba(255,255,255,.07) 0 6px,transparent 6px 12px),
+  linear-gradient(160deg,var(--c),color-mix(in srgb,var(--c) 70%,#1a1a1a));
+  border:5px solid var(--card)}
+.back::after{content:"℞";font-family:var(--f-display);font-size:clamp(1.6rem,5vw,2.4rem);color:rgba(255,255,255,.85)}
+.back::before{content:"";position:absolute;inset:6px;border:1px solid rgba(255,255,255,.35);border-radius:8px}
+.front{transform:rotateY(180deg);text-align:center;align-content:center;gap:5px;padding:8px 6px;border:1px solid var(--line)}
+.front .kind{font-family:var(--f-mono);font-size:.62rem;letter-spacing:.14em;text-transform:uppercase;opacity:.75}
+.front.brand{background:linear-gradient(165deg,var(--c),color-mix(in srgb,var(--c) 78%,#141414));color:#fff;border-color:transparent}
+.front.brand .nm{font-family:var(--f-display);font-weight:800;font-size:clamp(.8rem,15cqi,1.3rem);line-height:1.15;overflow-wrap:break-word}
+.front.gen{background:color-mix(in srgb,var(--c) 13%,var(--card));color:var(--ink)}
+.front.gen .nm{font-family:var(--f-mono);font-weight:600;font-size:clamp(.6rem,10.5cqi,.95rem);line-height:1.2;overflow-wrap:break-word;word-break:normal}
+.front .cls{font-size:clamp(.58rem,8.5cqi,.72rem);line-height:1.25;opacity:0;transition:opacity .3s}
+.card.done .front .cls{opacity:.85}
+.card.done .front{box-shadow:0 0 0 3px var(--good)}
+.card.miss .front{box-shadow:0 0 0 3px var(--bad)}
+.card:disabled{cursor:default}
+@media (max-width:560px){.table{gap:8px}.front{padding:6px}}
+
+.toast{min-height:1.6em;margin:14px 0 4px;font-weight:600;text-align:center}
+.toast.good{color:var(--good)}
+.win{display:none;margin-top:18px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px}
+.win.on{display:block}
+.win h2{font-size:1.5rem;margin-bottom:6px}
+.log{list-style:none;margin:14px 0 0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,260px),1fr));gap:8px}
+.log li{border-left:4px solid var(--c);background:var(--card);border-radius:8px;padding:8px 10px;font-size:.92rem;border:1px solid var(--line);border-left:4px solid var(--c)}
+.log li b{font-family:var(--f-display)}
+.log li span{display:block;color:var(--muted);font-size:.82rem}
+details.study{margin-top:24px}
+details.study summary{cursor:pointer;font-weight:700}
+footer{margin-top:32px;color:var(--muted);font-size:.85rem}
+@media (prefers-reduced-motion:reduce){.card .in{transition:none}}
+</style></head>
+<body>
+<div class="wrap">
+<header>
+  <span class="label">Card game · brand and generic names</span>
+  <h1>Brand <em>Match</em></h1>
+  <p class="lead">Flip two cards at a time and pair each brand name with its generic. Matched pairs stay face up and show the drug class.</p>
+</header>
+<div class="label">Topic</div>
+<div class="chips" id="topics" role="group" aria-label="Topic"></div>
+<div class="bar">
+  <div class="left">
+    <select class="btn" id="size" aria-label="Number of pairs"><option value="6">Easy · 6 pairs</option><option value="8" selected>Medium · 8 pairs</option><option value="10">Hard · 10 pairs</option></select>
+    <button class="btn primary" id="deal">Deal again</button>
+  </div>
+  <div class="right">
+    <span class="stat">Pairs <b id="s-pairs">0/0</b></span>
+    <span class="stat">Flips <b id="s-moves">0</b></span>
+    <span class="stat">Time <b id="s-time">0:00</b></span>
+    <span class="stat">Best <b id="s-best">–</b></span>
+  </div>
+</div>
+<div class="table" id="table"></div>
+<p class="toast" id="toast" aria-live="polite"></p>
+<div class="win" id="win"><h2 id="w-title"></h2><p id="w-line"></p><ul class="log" id="w-log"></ul><p style="margin-top:14px"><button class="btn primary" id="w-again">Deal a new hand</button></p></div>
+<details class="study"><summary>Study every pair in this topic</summary><ul class="log" id="study"></ul></details>
+<footer>For educational purposes only. Not clinical advice.</footer>
+</div>
+<script>
+const TOPICS=[{"id": "pharm", "name": "Pharmacology basics", "col": "#5d7a6b", "pairs": [{"b": "Nexium", "g": "esomeprazole", "c": "Proton pump inhibitor"}, {"b": "Prilosec", "g": "omeprazole", "c": "Proton pump inhibitor"}, {"b": "Protonix", "g": "pantoprazole", "c": "Proton pump inhibitor"}, {"b": "Pepcid", "g": "famotidine", "c": "H2 blocker"}, {"b": "Benadryl", "g": "diphenhydramine", "c": "1st-gen antihistamine"}, {"b": "Zyrtec", "g": "cetirizine", "c": "2nd-gen antihistamine"}, {"b": "Claritin", "g": "loratadine", "c": "2nd-gen antihistamine"}, {"b": "Flomax", "g": "tamsulosin", "c": "Alpha-1 blocker"}, {"b": "Proscar", "g": "finasteride", "c": "5-alpha reductase inhibitor"}, {"b": "Lipitor", "g": "atorvastatin", "c": "Statin"}, {"b": "Crestor", "g": "rosuvastatin", "c": "Statin"}, {"b": "Synthroid", "g": "levothyroxine", "c": "Thyroid hormone"}, {"b": "Zoloft", "g": "sertraline", "c": "SSRI"}, {"b": "Lexapro", "g": "escitalopram", "c": "SSRI"}, {"b": "Lovaza", "g": "omega-3-acid ethyl esters", "c": "Omega-3 fatty acid"}]}, {"id": "id", "name": "Infectious disease", "col": "#8a5a44", "pairs": [{"b": "Amoxil", "g": "amoxicillin", "c": "Penicillin"}, {"b": "Augmentin", "g": "amoxicillin-clavulanate", "c": "Penicillin + β-lactamase inhibitor"}, {"b": "Keflex", "g": "cephalexin", "c": "1st-gen cephalosporin"}, {"b": "Zithromax", "g": "azithromycin", "c": "Macrolide"}, {"b": "Cipro", "g": "ciprofloxacin", "c": "Fluoroquinolone"}, {"b": "Bactrim", "g": "sulfamethoxazole-trimethoprim", "c": "Sulfonamide combination"}, {"b": "Macrobid", "g": "nitrofurantoin", "c": "Urinary antibacterial"}, {"b": "Monurol", "g": "fosfomycin", "c": "Urinary antibacterial"}, {"b": "Vibramycin", "g": "doxycycline", "c": "Tetracycline"}, {"b": "Cleocin", "g": "clindamycin", "c": "Lincosamide"}, {"b": "Zosyn", "g": "piperacillin-tazobactam", "c": "Penicillin + β-lactamase inhibitor"}, {"b": "Vancocin", "g": "vancomycin", "c": "Glycopeptide"}, {"b": "Dificid", "g": "fidaxomicin", "c": "Macrolide (C. diff)"}, {"b": "Flagyl", "g": "metronidazole", "c": "Nitroimidazole"}, {"b": "Zyvox", "g": "linezolid", "c": "Oxazolidinone"}, {"b": "Merrem", "g": "meropenem", "c": "Carbapenem"}]}, {"id": "renal", "name": "Nephrology", "col": "#4f6d8a", "pairs": [{"b": "Glucophage", "g": "metformin", "c": "Biguanide"}, {"b": "Lanoxin", "g": "digoxin", "c": "Cardiac glycoside"}, {"b": "Lasix", "g": "furosemide", "c": "Loop diuretic"}, {"b": "Lithobid", "g": "lithium", "c": "Mood stabilizer"}, {"b": "Tagamet", "g": "cimetidine", "c": "H2 blocker"}, {"b": "Farxiga", "g": "dapagliflozin", "c": "SGLT2 inhibitor"}, {"b": "Jardiance", "g": "empagliflozin", "c": "SGLT2 inhibitor"}, {"b": "Kerendia", "g": "finerenone", "c": "Nonsteroidal MRA"}, {"b": "Renvela", "g": "sevelamer carbonate", "c": "Phosphate binder"}, {"b": "Auryxia", "g": "ferric citrate", "c": "Phosphate binder"}, {"b": "Sensipar", "g": "cinacalcet", "c": "Calcimimetic"}, {"b": "Veltassa", "g": "patiromer", "c": "Potassium binder"}, {"b": "Lokelma", "g": "sodium zirconium cyclosilicate", "c": "Potassium binder"}]}, {"id": "pain", "name": "Pain management", "col": "#9a4f5a", "pairs": [{"b": "Celebrex", "g": "celecoxib", "c": "COX-2 selective NSAID"}, {"b": "Mobic", "g": "meloxicam", "c": "NSAID (oxicam)"}, {"b": "Motrin", "g": "ibuprofen", "c": "NSAID"}, {"b": "Aleve", "g": "naproxen sodium", "c": "NSAID"}, {"b": "Voltaren", "g": "diclofenac", "c": "NSAID"}, {"b": "Relafen", "g": "nabumetone", "c": "NSAID (prodrug)"}, {"b": "Daypro", "g": "oxaprozin", "c": "NSAID"}, {"b": "Tylenol", "g": "acetaminophen", "c": "Analgesic/antipyretic"}, {"b": "OxyContin", "g": "oxycodone ER", "c": "Opioid agonist"}, {"b": "Dilaudid", "g": "hydromorphone", "c": "Opioid agonist"}, {"b": "Ultram", "g": "tramadol", "c": "Opioid + SNRI activity"}, {"b": "Nucynta", "g": "tapentadol", "c": "Opioid + NE reuptake inhibitor"}, {"b": "Narcan", "g": "naloxone", "c": "Opioid antagonist"}, {"b": "Journavx", "g": "suzetrigine", "c": "NaV1.8 blocker"}, {"b": "Movantik", "g": "naloxegol", "c": "PAMORA"}, {"b": "Neurontin", "g": "gabapentin", "c": "Gabapentinoid"}, {"b": "Lyrica", "g": "pregabalin", "c": "Gabapentinoid"}, {"b": "Cymbalta", "g": "duloxetine", "c": "SNRI"}, {"b": "Soma", "g": "carisoprodol", "c": "Skeletal muscle relaxant"}, {"b": "Robaxin", "g": "methocarbamol", "c": "Skeletal muscle relaxant"}, {"b": "Zanaflex", "g": "tizanidine", "c": "Alpha-2 agonist (antispasticity)"}, {"b": "Skelaxin", "g": "metaxalone", "c": "Skeletal muscle relaxant"}]}, {"id": "hf", "name": "Heart failure", "col": "#a0633a", "pairs": [{"b": "Entresto", "g": "sacubitril-valsartan", "c": "ARNI"}, {"b": "Toprol-XL", "g": "metoprolol succinate", "c": "Beta-blocker"}, {"b": "Coreg", "g": "carvedilol", "c": "Beta-blocker"}, {"b": "Aldactone", "g": "spironolactone", "c": "MRA"}, {"b": "Inspra", "g": "eplerenone", "c": "MRA"}, {"b": "Farxiga", "g": "dapagliflozin", "c": "SGLT2 inhibitor"}, {"b": "Jardiance", "g": "empagliflozin", "c": "SGLT2 inhibitor"}, {"b": "BiDil", "g": "isosorbide dinitrate-hydralazine", "c": "Vasodilator combination"}, {"b": "Lanoxin", "g": "digoxin", "c": "Cardiac glycoside"}, {"b": "Lasix", "g": "furosemide", "c": "Loop diuretic"}, {"b": "Soaanz", "g": "torsemide", "c": "Loop diuretic"}, {"b": "Verquvo", "g": "vericiguat", "c": "sGC stimulator"}, {"b": "Corlanor", "g": "ivabradine", "c": "If channel inhibitor"}]}, {"id": "htn", "name": "Hypertension", "col": "#3f7470", "pairs": [{"b": "Norvasc", "g": "amlodipine", "c": "Dihydropyridine CCB"}, {"b": "Procardia XL", "g": "nifedipine ER", "c": "Dihydropyridine CCB"}, {"b": "Zestril", "g": "lisinopril", "c": "ACE inhibitor"}, {"b": "Vasotec", "g": "enalapril", "c": "ACE inhibitor"}, {"b": "Altace", "g": "ramipril", "c": "ACE inhibitor"}, {"b": "Cozaar", "g": "losartan", "c": "ARB"}, {"b": "Diovan", "g": "valsartan", "c": "ARB"}, {"b": "Benicar", "g": "olmesartan", "c": "ARB"}, {"b": "Microzide", "g": "hydrochlorothiazide", "c": "Thiazide diuretic"}, {"b": "Thalitone", "g": "chlorthalidone", "c": "Thiazide-like diuretic"}, {"b": "Tenormin", "g": "atenolol", "c": "Beta-blocker"}, {"b": "Bystolic", "g": "nebivolol", "c": "Beta-blocker"}, {"b": "Catapres", "g": "clonidine", "c": "Central alpha-2 agonist"}, {"b": "Cardizem", "g": "diltiazem", "c": "Non-DHP CCB"}]}, {"id": "afib", "name": "Atrial fibrillation", "col": "#6b5b8a", "pairs": [{"b": "Eliquis", "g": "apixaban", "c": "Factor Xa inhibitor"}, {"b": "Xarelto", "g": "rivaroxaban", "c": "Factor Xa inhibitor"}, {"b": "Savaysa", "g": "edoxaban", "c": "Factor Xa inhibitor"}, {"b": "Pradaxa", "g": "dabigatran", "c": "Direct thrombin inhibitor"}, {"b": "Jantoven", "g": "warfarin", "c": "Vitamin K antagonist"}, {"b": "Praxbind", "g": "idarucizumab", "c": "Dabigatran reversal"}, {"b": "Cardizem", "g": "diltiazem", "c": "Non-DHP CCB"}, {"b": "Calan", "g": "verapamil", "c": "Non-DHP CCB"}, {"b": "Toprol-XL", "g": "metoprolol succinate", "c": "Beta-blocker"}, {"b": "Lanoxin", "g": "digoxin", "c": "Cardiac glycoside"}, {"b": "Pacerone", "g": "amiodarone", "c": "Class III antiarrhythmic"}, {"b": "Multaq", "g": "dronedarone", "c": "Class III antiarrhythmic"}, {"b": "Tikosyn", "g": "dofetilide", "c": "Class III antiarrhythmic"}, {"b": "Betapace", "g": "sotalol", "c": "Class III antiarrhythmic"}, {"b": "Rythmol", "g": "propafenone", "c": "Class IC antiarrhythmic"}]}, {"id": "asthma", "name": "Asthma", "col": "#4d7896", "pairs": [{"b": "Ventolin HFA", "g": "albuterol", "c": "SABA"}, {"b": "Xopenex HFA", "g": "levalbuterol", "c": "SABA"}, {"b": "Qvar RediHaler", "g": "beclomethasone", "c": "ICS"}, {"b": "Pulmicort Flexhaler", "g": "budesonide", "c": "ICS"}, {"b": "Arnuity Ellipta", "g": "fluticasone furoate", "c": "ICS"}, {"b": "Asmanex", "g": "mometasone", "c": "ICS"}, {"b": "Alvesco", "g": "ciclesonide", "c": "ICS"}, {"b": "Symbicort", "g": "budesonide-formoterol", "c": "ICS-LABA"}, {"b": "Advair Diskus", "g": "fluticasone propionate-salmeterol", "c": "ICS-LABA"}, {"b": "Breo Ellipta", "g": "fluticasone furoate-vilanterol", "c": "ICS-LABA"}, {"b": "Dulera", "g": "mometasone-formoterol", "c": "ICS-LABA"}, {"b": "Airsupra", "g": "albuterol-budesonide", "c": "SABA-ICS"}, {"b": "Singulair", "g": "montelukast", "c": "Leukotriene receptor antagonist"}, {"b": "Xolair", "g": "omalizumab", "c": "Anti-IgE"}, {"b": "Nucala", "g": "mepolizumab", "c": "Anti-IL-5"}, {"b": "Dupixent", "g": "dupilumab", "c": "Anti-IL-4Rα"}, {"b": "Tezspire", "g": "tezepelumab", "c": "Anti-TSLP"}]}, {"id": "copd", "name": "COPD", "col": "#7a7348", "pairs": [{"b": "Spiriva", "g": "tiotropium", "c": "LAMA"}, {"b": "Incruse Ellipta", "g": "umeclidinium", "c": "LAMA"}, {"b": "Tudorza Pressair", "g": "aclidinium", "c": "LAMA"}, {"b": "Atrovent HFA", "g": "ipratropium", "c": "SAMA"}, {"b": "Combivent Respimat", "g": "ipratropium-albuterol", "c": "SAMA-SABA"}, {"b": "Serevent Diskus", "g": "salmeterol", "c": "LABA"}, {"b": "Striverdi Respimat", "g": "olodaterol", "c": "LABA"}, {"b": "Anoro Ellipta", "g": "umeclidinium-vilanterol", "c": "LAMA-LABA"}, {"b": "Stiolto Respimat", "g": "tiotropium-olodaterol", "c": "LAMA-LABA"}, {"b": "Bevespi Aerosphere", "g": "glycopyrrolate-formoterol", "c": "LAMA-LABA"}, {"b": "Trelegy Ellipta", "g": "fluticasone furoate-umeclidinium-vilanterol", "c": "ICS-LAMA-LABA"}, {"b": "Breztri Aerosphere", "g": "budesonide-glycopyrrolate-formoterol", "c": "ICS-LAMA-LABA"}, {"b": "Daliresp", "g": "roflumilast", "c": "PDE4 inhibitor"}, {"b": "Ohtuvayre", "g": "ensifentrine", "c": "PDE3/4 inhibitor"}]}, {"id": "pah", "name": "Pulmonary arterial hypertension", "col": "#8a4f6e", "pairs": [{"b": "Adcirca", "g": "tadalafil", "c": "PDE5 inhibitor"}, {"b": "Revatio", "g": "sildenafil", "c": "PDE5 inhibitor"}, {"b": "Adempas", "g": "riociguat", "c": "sGC stimulator"}, {"b": "Letairis", "g": "ambrisentan", "c": "Endothelin receptor antagonist"}, {"b": "Opsumit", "g": "macitentan", "c": "Endothelin receptor antagonist"}, {"b": "Tracleer", "g": "bosentan", "c": "Endothelin receptor antagonist"}, {"b": "Opsynvi", "g": "macitentan-tadalafil", "c": "ERA + PDE5 inhibitor"}, {"b": "Flolan", "g": "epoprostenol", "c": "IV prostacyclin"}, {"b": "Remodulin", "g": "treprostinil (SC/IV)", "c": "Prostacyclin analog"}, {"b": "Tyvaso", "g": "treprostinil (inhaled)", "c": "Prostacyclin analog"}, {"b": "Orenitram", "g": "treprostinil (oral)", "c": "Prostacyclin analog"}, {"b": "Uptravi", "g": "selexipag", "c": "IP receptor agonist"}, {"b": "Winrevair", "g": "sotatercept", "c": "Activin signaling inhibitor"}]}];
+const ALL={id:'all',name:'All topics',col:'#5b5f6e',pairs:(()=>{const seen=new Set(),out=[];TOPICS.forEach(t=>t.pairs.forEach(p=>{if(!seen.has(p.b)&&!seen.has('g:'+p.g)){seen.add(p.b);seen.add('g:'+p.g);out.push({...p,col:t.col})}}));return out})()};
+const LIST=[...TOPICS,ALL];
+const $=s=>document.querySelector(s);
+const store={get(k,d){try{const v=localStorage.getItem('bm-'+k);return v===null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem('bm-'+k,JSON.stringify(v))}catch(e){}}};
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+let topic=store.get('topic','pharm');if(!LIST.find(t=>t.id===topic))topic='pharm';
+$('#size').value=String(store.get('size',8));
+let cards=[],open=[],lock=false,moves=0,matched=0,pairs=0,t0=0,timer=null,log=[];
+const T=()=>LIST.find(t=>t.id===topic);
+
+$('#topics').innerHTML=LIST.map(t=>`<button class="chip" style="--c:${t.col}" data-t="${t.id}" aria-pressed="${t.id===topic}"><i></i>${esc(t.name)}</button>`).join('');
+$('#topics').onclick=e=>{const b=e.target.closest('[data-t]');if(!b)return;topic=b.dataset.t;store.set('topic',topic);document.querySelectorAll('#topics .chip').forEach(c=>c.setAttribute('aria-pressed',c.dataset.t===topic));deal()};
+$('#size').onchange=()=>{store.set('size',+$('#size').value);deal()};
+$('#deal').onclick=deal;$('#w-again').onclick=deal;
+
+function fmt(s){return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')}
+function bestKey(){return 'best-'+topic+'-'+$('#size').value}
+function showBest(){const b=store.get(bestKey(),null);$('#s-best').textContent=b?`${b.m} flips`:'–'}
+function stats(){$('#s-pairs').textContent=`${matched}/${pairs}`;$('#s-moves').textContent=moves}
+function deal(){
+  const t=T(),n=Math.min(+$('#size').value,t.pairs.length);
+  const pick=shuffle([...t.pairs]).slice(0,n);
+  cards=shuffle(pick.flatMap((p,i)=>[{k:i,type:'brand',text:p.b,p},{k:i,type:'gen',text:p.g,p}]));
+  open=[];lock=false;moves=0;matched=0;pairs=n;log=[];clearInterval(timer);timer=null;t0=0;$('#s-time').textContent='0:00';
+  document.documentElement.style.setProperty('--accent',t.col);
+  const cols=colsFor();
+  $('#table').style.setProperty('--cols',cols);
+  $('#table').innerHTML=cards.map((c,i)=>{const col=c.p.col||t.col;return `<button class="card" data-i="${i}" style="--c:${col}" aria-label="Face-down card ${i+1}"><div class="in"><div class="face back"></div><div class="face front ${c.type}"><span class="kind">${c.type==='brand'?'Brand':'Generic'}</span><span class="nm">${esc(c.text)}</span><span class="cls">${esc(c.p.c)}</span></div></div></button>`}).join('');
+  $('#toast').textContent='';$('#toast').className='toast';$('#win').classList.remove('on');
+  $('#study').innerHTML=[...t.pairs].sort((a,b)=>a.b.localeCompare(b.b)).map(p=>`<li style="--c:${p.col||t.col}"><b>${esc(p.b)}</b> · ${esc(p.g)}<span>${esc(p.c)}</span></li>`).join('');
+  stats();showBest();
+}
+$('#table').addEventListener('click',e=>{
+  const el=e.target.closest('.card');if(!el||lock)return;
+  const i=+el.dataset.i,c=cards[i];if(el.classList.contains('up')||el.classList.contains('done'))return;
+  if(!timer){t0=Date.now();timer=setInterval(()=>$('#s-time').textContent=fmt(Math.floor((Date.now()-t0)/1000)),500)}
+  el.classList.add('up');el.setAttribute('aria-label',`${c.type==='brand'?'Brand':'Generic'}: ${c.text}`);open.push(i);
+  if(open.length<2)return;
+  moves++;const [a,b]=open.map(j=>cards[j]);const [ea,eb]=open.map(j=>$(`.card[data-i="${j}"]`));
+  if(a.k===b.k&&a.type!==b.type){
+    [ea,eb].forEach(x=>{x.classList.remove('up');x.classList.add('done');x.disabled=true});
+    matched++;const br=a.type==='brand'?a:b;log.push(br.p);
+    $('#toast').className='toast good';$('#toast').textContent=`${br.p.b} = ${br.p.g} · ${br.p.c}`;
+    open=[];stats();if(matched===pairs)finish();
+  }else{
+    lock=true;[ea,eb].forEach(x=>x.classList.add('miss'));
+    $('#toast').className='toast';$('#toast').textContent=a.type===b.type?`Both are ${a.type==='brand'?'brand':'generic'} names. Pair a brand with a generic.`:'Not a match.';
+    setTimeout(()=>{[ea,eb].forEach(x=>{x.classList.remove('up','miss');x.setAttribute('aria-label','Face-down card')});open=[];lock=false},950);
+    stats();
+  }
+});
+function finish(){
+  clearInterval(timer);const secs=Math.floor((Date.now()-t0)/1000);
+  const prev=store.get(bestKey(),null),isBest=!prev||moves<prev.m;if(isBest)store.set(bestKey(),{m:moves,s:secs});showBest();
+  const perfect=moves===pairs;
+  $('#w-title').textContent=perfect?'Perfect hand':isBest?'New best':'All pairs matched';
+  $('#w-line').textContent=`${pairs} pairs in ${moves} flips and ${fmt(secs)}. A perfect game is ${pairs} flips.`;
+  $('#w-log').innerHTML=log.map(p=>`<li style="--c:${p.col||T().col}"><b>${esc(p.b)}</b> · ${esc(p.g)}<span>${esc(p.c)}</span></li>`).join('');
+  $('#win').classList.add('on');
+}
+function colsFor(){const w=window.innerWidth,n=cards.length;if(w<560)return 4;if(w<900)return n>=20?5:4;return n/2}
+let rt;window.addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(()=>$('#table').style.setProperty('--cols',colsFor()),150)});
+deal();
+</script>
+</body></html>

@@ -1,0 +1,545 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Refill Rocket</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Titan+One&family=Lexend:wght@400;600;700&display=swap">
+<style>
+/* Layout: patient chart strip on top (case + regimen slots), a 16:10 side-scrolling hospital corridor below. Cards float over everything. Single committed look: bright clinic, white tile, cardiology reds and teals. */
+:root {
+  --bg: #e7eef4;
+  --panel: #ffffff;
+  --line: #c9d6e2;
+  --ink: #10243a;
+  --muted: #587089;
+  --heart: #e5484d;
+  --teal: #0e9f9a;
+  --gold: #f2b01e;
+  --good: #16a34a;
+  --f-display: "Titan One", "Arial Rounded MT Bold", "Arial Black", system-ui, sans-serif;
+  --f-body: "Lexend", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { height: 100%; margin: 0; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 15px; line-height: 1.4;
+  padding: max(8px, env(safe-area-inset-top, 0px)) max(12px, env(safe-area-inset-right, 0px)) max(8px, env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-left, 0px));
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; overflow: hidden;
+  user-select: none; -webkit-user-select: none; touch-action: none;
+}
+button { font: inherit; color: inherit; cursor: pointer; }
+button:focus-visible { outline: 3px solid var(--teal); outline-offset: 2px; }
+h1, h2, h3 { font-family: var(--f-display); font-weight: 400; margin: 0; line-height: 1.05; text-wrap: balance; }
+p { margin: 0; }
+
+.wrap { width: min(100%, calc((100dvh - 190px) * 1.6), 980px); display: grid; gap: 8px; }
+.bar { display: flex; align-items: center; justify-content: space-between; gap: 8px 14px; flex-wrap: wrap; }
+.brand { font-family: var(--f-display); font-size: 1.3rem; color: var(--heart); }
+.brand span { color: var(--teal); }
+.stats { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; font-variant-numeric: tabular-nums; }
+.stats div { display: grid; line-height: 1.1; }
+.stats small { font-size: .62rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+.stats b { font-size: 1.05rem; }
+.hearts { color: var(--heart); font-size: 1.2rem; letter-spacing: 2px; }
+.hearts .lost { color: var(--line); }
+.pause { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; width: 38px; height: 38px; font-weight: 700; }
+
+.chart { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 9px 12px; display: grid; gap: 7px; }
+.chart .who { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.tag { font-size: .66rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; color: #fff; }
+.tag.HTN { background: #c2410c; } .tag.HF { background: #be123c; } .tag.AFib { background: #6d28d9; }
+.chart .case { font-size: .86rem; color: var(--muted); }
+.slots { display: flex; gap: 6px; flex-wrap: wrap; }
+.slot { border: 2px dashed var(--line); border-radius: 10px; padding: 3px 10px; font-size: .8rem; font-weight: 600; color: var(--muted); }
+.slot.done { border-style: solid; border-color: var(--good); color: var(--ink); background: #16a34a14; }
+.slot.done b { color: var(--good); }
+
+.stage { position: relative; }
+#cv { display: block; width: 100%; aspect-ratio: 16 / 10; height: auto; border-radius: 14px; background: #f7fafc; box-shadow: 0 0 0 1px var(--line); cursor: pointer; }
+.toast {
+  position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%); width: min(94%, 560px);
+  background: rgba(255,255,255,.95); border: 2px solid var(--line); border-radius: 12px; padding: 7px 12px; font-size: .84rem; text-align: center; pointer-events: none; transition: opacity .3s;
+}
+.toast b { display: block; font-family: var(--f-display); font-weight: 400; font-size: 1.05rem; }
+.toast.good { border-color: var(--good); } .toast.good b { color: var(--good); }
+.toast.bad { border-color: var(--heart); } .toast.bad b { color: var(--heart); }
+.hint { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); background: rgba(16,36,58,.8); color: #fff; font-size: .8rem; padding: 4px 12px; border-radius: 999px; pointer-events: none; }
+
+.overlay { position: fixed; inset: 0; background: rgba(16, 36, 58, .55); display: flex; align-items: center; justify-content: center; padding: 16px; overflow-y: auto; z-index: 10; }
+.card { background: var(--panel); border-radius: 18px; padding: 20px; width: min(100%, 560px); display: grid; gap: 12px; margin: auto; box-shadow: 0 20px 60px -20px rgba(16,36,58,.6); }
+.card h1 { font-size: clamp(2.1rem, 8vw, 3rem); color: var(--heart); }
+.card h1 span { color: var(--teal); }
+.card h2 { font-size: 1.6rem; }
+.kicker { font-size: .7rem; letter-spacing: .14em; text-transform: uppercase; font-weight: 700; color: var(--teal); }
+.card p { color: var(--muted); }
+.modes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+@media (max-width: 460px) { .modes { grid-template-columns: minmax(0, 1fr); } }
+.mode { text-align: left; border: 2px solid var(--line); background: var(--panel); border-radius: 14px; padding: 10px 12px; display: grid; gap: 2px; }
+.mode:hover { border-color: var(--teal); }
+.mode b { font-family: var(--f-display); font-weight: 400; font-size: 1.15rem; }
+.mode span { font-size: .8rem; color: var(--muted); }
+.mode em { font-style: normal; font-size: .75rem; color: var(--gold); font-weight: 700; }
+.keys { font-size: .8rem; color: var(--muted); border-top: 1px dashed var(--line); padding-top: 10px; }
+.keys b { color: var(--ink); }
+.cta { font-family: var(--f-display); font-size: 1.15rem; background: var(--heart); color: #fff; border: 0; border-radius: 12px; padding: 10px 20px; box-shadow: 0 4px 0 #9f2a2e; justify-self: start; }
+.cta:active { transform: translateY(2px); box-shadow: 0 2px 0 #9f2a2e; }
+.ghost { font-weight: 700; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 9px 14px; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; }
+.casebox { background: var(--bg); border-radius: 12px; padding: 12px; display: grid; gap: 6px; }
+.casebox .needs { font-weight: 700; }
+.list { display: grid; gap: 8px; }
+.list div { border-left: 3px solid var(--good); padding: 3px 0 3px 10px; font-size: .88rem; }
+.list div.bad { border-left-color: var(--heart); }
+.list b { display: block; }
+.list span { color: var(--muted); }
+.stat { display: flex; gap: 18px; flex-wrap: wrap; }
+.stat div { display: grid; }
+.stat small { font-size: .62rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+.stat b { font-family: var(--f-display); font-weight: 400; font-size: 1.6rem; font-variant-numeric: tabular-nums; }
+.foot { font-size: .74rem !important; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="bar">
+    <div class="brand">Refill <span>Rocket</span></div>
+    <div class="stats">
+      <div><small>Score</small><b id="h-score">0</b></div>
+      <div><small>Patients treated</small><b id="h-pts">0</b></div>
+      <div><small>Patient safety</small><span class="hearts" id="h-hearts"></span></div>
+      <button class="pause" id="pauseBtn" type="button" aria-label="Pause">II</button>
+    </div>
+  </div>
+  <div class="chart" id="chart">
+    <div class="who"><span class="tag" id="c-tag">HTN</span><b id="c-title">Choose a clinic to start</b></div>
+    <p class="case" id="c-case"></p>
+    <div class="slots" id="c-slots"></div>
+  </div>
+  <div class="stage">
+    <canvas id="cv" width="720" height="450" tabindex="0" aria-label="Refill Rocket. Hold Space, click or touch to fly up; let go to drop."></canvas>
+    <div class="hint" id="hint" hidden>Hold to fly · let go to drop</div>
+    <div class="toast" id="toast" style="opacity:0"></div>
+  </div>
+</div>
+
+<!-- START -->
+<div class="overlay" id="o-start">
+  <div class="card">
+    <span class="kicker">Cardiology refill run</span>
+    <h1>Refill <span>Rocket</span></h1>
+    <p>Your patient needs a regimen. Fly the jetpack through the pharmacy and grab the medications that fit their case. Anything harmful or interacting costs a safety heart, and so do the ECG zappers. Lose all three hearts and the run ends.</p>
+    <div class="modes">
+      <button class="mode" type="button" data-m="HTN"><b>Hypertension</b><span>First-line agents, diabetes with albuminuria, pregnancy</span><em class="best" data-m="HTN"></em></button>
+      <button class="mode" type="button" data-m="HF"><b>Heart failure</b><span>HFrEF four pillars, add-on therapy</span><em class="best" data-m="HF"></em></button>
+      <button class="mode" type="button" data-m="AFib"><b>Atrial fibrillation</b><span>Anticoagulation and rate control</span><em class="best" data-m="AFib"></em></button>
+      <button class="mode" type="button" data-m="ALL"><b>Mixed clinic</b><span>All three, shuffled</span><em class="best" data-m="ALL"></em></button>
+    </div>
+    <p class="keys"><b>Controls:</b> hold Space, the mouse button, or your finger to fly up. Let go to drop. P pauses.</p>
+  </div>
+</div>
+
+<!-- PATIENT -->
+<div class="overlay" id="o-patient" hidden>
+  <div class="card">
+    <span class="kicker" id="p-kicker"></span>
+    <h2 id="p-title"></h2>
+    <div class="casebox"><p id="p-case" style="color:var(--ink)"></p><p class="needs" id="p-needs"></p></div>
+    <p>The chart above the game shows each slot as you fill it. Only grab what this patient should take.</p>
+    <button class="cta" id="p-go" type="button">Take off</button>
+  </div>
+</div>
+
+<!-- DONE (regimen complete) -->
+<div class="overlay" id="o-done" hidden>
+  <div class="card">
+    <span class="kicker">Regimen complete · +500 · +1 safety heart</span>
+    <h2 id="d-title"></h2>
+    <div class="list" id="d-list"></div>
+    <button class="cta" id="d-next" type="button">Next patient</button>
+  </div>
+</div>
+
+<!-- PAUSE -->
+<div class="overlay" id="o-pause" hidden>
+  <div class="card">
+    <span class="kicker">Paused</span><h2>On hold</h2>
+    <div class="row"><button class="cta" id="resume" type="button">Resume</button><button class="ghost" id="quit" type="button">End run</button></div>
+  </div>
+</div>
+
+<!-- OVER -->
+<div class="overlay" id="o-over" hidden>
+  <div class="card">
+    <span class="kicker" id="v-kicker"></span>
+    <h2 id="v-title">Run over</h2>
+    <div class="stat"><div><small>Score</small><b id="v-score">0</b></div><div><small>Patients treated</small><b id="v-pts">0</b></div><div><small>Distance</small><b id="v-dist">0 m</b></div></div>
+    <p id="v-best"></p>
+    <div class="row"><button class="cta" id="again" type="button">Fly again</button><button class="ghost" id="menu" type="button">Change clinic</button></div>
+    <div class="list" id="v-list"></div>
+    <p class="foot">Based on ACC/AHA hypertension, heart failure and AFib guidance, simplified. For educational purposes only. Not clinical advice.</p>
+  </div>
+</div>
+
+<script>
+(() => {
+const $ = s => document.querySelector(s);
+const cv = $('#cv'), ctx = cv.getContext('2d');
+const W = 720, H = 450, CEIL = 34, FLOOR = H - 44, PX = 150;
+
+/* ---------------- Medications ---------------- */
+const D = {
+  chlorthalidone: ['Chlorthalidone', 'Thiazide-type diuretic'], hctz: ['Hydrochlorothiazide', 'Thiazide diuretic'],
+  amlodipine: ['Amlodipine', 'Dihydropyridine CCB'], nifedipine: ['Nifedipine ER', 'Dihydropyridine CCB'],
+  lisinopril: ['Lisinopril', 'ACE inhibitor'], losartan: ['Losartan', 'ARB'], labetalol: ['Labetalol', 'Alpha/beta blocker'],
+  ibuprofen: ['Ibuprofen', 'NSAID'], pseudoephedrine: ['Pseudoephedrine', 'Decongestant'],
+  sacval: ['Sacubitril-valsartan', 'ARNI'], metsucc: ['Metoprolol succinate', 'Beta-blocker'], carvedilol: ['Carvedilol', 'Beta-blocker'],
+  spironolactone: ['Spironolactone', 'MRA'], dapagliflozin: ['Dapagliflozin', 'SGLT2 inhibitor'], empagliflozin: ['Empagliflozin', 'SGLT2 inhibitor'],
+  diltiazem: ['Diltiazem', 'Non-DHP CCB'], verapamil: ['Verapamil', 'Non-DHP CCB'], pioglitazone: ['Pioglitazone', 'TZD'],
+  hydralazine: ['Hydralazine', 'Arterial vasodilator'], isdn: ['Isosorbide dinitrate', 'Nitrate'],
+  apixaban: ['Apixaban', 'DOAC'], dabigatran: ['Dabigatran', 'DOAC'], warfarin: ['Warfarin', 'Vitamin K antagonist'],
+  aspirin: ['Aspirin', 'Antiplatelet'], digoxin: ['Digoxin', 'Cardiac glycoside'],
+};
+const ANTICOAG_STACK = 'Never stack two anticoagulants. The bleeding risk jumps with no added stroke protection.';
+const DUAL_RAS = 'Don’t combine an ACE inhibitor and an ARB: more hyperkalemia and kidney injury, no added benefit.';
+
+/* ---------------- Patients ---------------- */
+const PATIENTS = [
+  { cond: 'HTN', title: 'Stage 2 hypertension', short: 'BP 152/96 · no diabetes, CKD or heart disease',
+    case: 'A 55-year-old with BP 152/96 on two visits. No diabetes, CKD, or heart disease. Start two first-line drugs from different classes.',
+    slots: [{ name: 'Thiazide-type diuretic', ok: ['chlorthalidone', 'hctz'], why: 'Thiazide-type diuretics are first-line; chlorthalidone has the longest action.' },
+            { name: 'Second first-line class', ok: ['amlodipine', 'lisinopril', 'losartan'], why: 'A CCB, ACE inhibitor, or ARB rounds out a two-drug first-line start.' }],
+    harm: { ibuprofen: 'NSAIDs raise BP and blunt most antihypertensives.', pseudoephedrine: 'Decongestants raise blood pressure.' },
+    conflict: { lisinopril: { losartan: DUAL_RAS }, losartan: { lisinopril: DUAL_RAS } } },
+  { cond: 'HTN', title: 'Diabetes with albuminuria', short: 'Type 2 diabetes · BP 148/90 · UACR 450 mg/g · eGFR 55',
+    case: 'A 60-year-old with type 2 diabetes, BP 148/90, a urine albumin-to-creatinine ratio of 450 mg/g, and eGFR 55.',
+    slots: [{ name: 'ACE inhibitor or ARB', ok: ['lisinopril', 'losartan'], why: 'An ACE inhibitor or ARB lowers BP and slows albuminuric kidney disease.' },
+            { name: 'Kidney-protective add-on', ok: ['dapagliflozin', 'empagliflozin'], why: 'An SGLT2 inhibitor protects the kidneys and heart in diabetic CKD.' }],
+    harm: { ibuprofen: 'NSAIDs worsen kidney function, especially on top of an ACE inhibitor or ARB.', pseudoephedrine: 'Decongestants raise blood pressure.' },
+    conflict: { lisinopril: { losartan: DUAL_RAS }, losartan: { lisinopril: DUAL_RAS } } },
+  { cond: 'HTN', title: 'Hypertension in pregnancy', short: '24 weeks pregnant · BP 156/102',
+    case: 'A patient 24 weeks pregnant with BP 156/102 on repeat checks.',
+    slots: [{ name: 'Pregnancy-safe beta-blocker', ok: ['labetalol'], why: 'Labetalol is a preferred antihypertensive in pregnancy.' },
+            { name: 'Pregnancy-safe CCB', ok: ['nifedipine'], why: 'Extended-release nifedipine is a preferred option in pregnancy.' }],
+    harm: { lisinopril: 'ACE inhibitors are fetotoxic and contraindicated in pregnancy.', losartan: 'ARBs are fetotoxic and contraindicated in pregnancy.', ibuprofen: 'NSAIDs after 20 weeks can harm fetal kidneys and lower amniotic fluid.' } },
+  { cond: 'HF', title: 'HFrEF: start the four pillars', short: 'EF 30% · NYHA II · BP 118/74 · K 4.3 · eGFR 60',
+    case: 'A 64-year-old with heart failure with reduced ejection fraction (EF 30%), NYHA class II. BP 118/74, potassium 4.3, eGFR 60.',
+    slots: [{ name: 'RAAS blocker (ARNI preferred)', ok: ['sacval', 'lisinopril', 'losartan'], why: 'Sacubitril-valsartan is preferred; an ACE inhibitor or ARB if an ARNI isn’t possible.' },
+            { name: 'Evidence-based beta-blocker', ok: ['metsucc', 'carvedilol'], why: 'Metoprolol succinate, carvedilol, or bisoprolol lower mortality in HFrEF.' },
+            { name: 'MRA', ok: ['spironolactone'], why: 'An MRA lowers mortality when potassium and kidney function allow.' },
+            { name: 'SGLT2 inhibitor', ok: ['dapagliflozin', 'empagliflozin'], why: 'SGLT2 inhibitors cut HF hospitalizations and death, with or without diabetes.' }],
+    harm: { diltiazem: 'Non-DHP CCBs depress contractility and worsen HFrEF.', verapamil: 'Non-DHP CCBs depress contractility and worsen HFrEF.',
+            ibuprofen: 'NSAIDs cause sodium and fluid retention and worsen HF.', pioglitazone: 'TZDs cause fluid retention and worsen HF.' },
+    conflict: { lisinopril: { sacval: 'ARNI plus an ACE inhibitor raises angioedema risk. Allow a 36-hour washout.', losartan: DUAL_RAS },
+                sacval: { lisinopril: 'ARNI plus an ACE inhibitor raises angioedema risk. Allow a 36-hour washout.', losartan: 'Sacubitril-valsartan already contains an ARB.' },
+                losartan: { sacval: 'Sacubitril-valsartan already contains an ARB.', lisinopril: DUAL_RAS } } },
+  { cond: 'HF', title: 'HFrEF: still symptomatic on GDMT', short: 'Self-identified Black patient · EF 30% · NYHA III on all four pillars',
+    case: 'A self-identified Black patient with HFrEF (EF 30%) who is still NYHA class III despite optimized ARNI, beta-blocker, MRA, and SGLT2 inhibitor.',
+    slots: [{ name: 'Arterial vasodilator', ok: ['hydralazine'], why: 'Hydralazine plus isosorbide dinitrate lowers mortality in this group.' },
+            { name: 'Venous vasodilator', ok: ['isdn'], why: 'Isosorbide dinitrate is the other half of the combination.' }],
+    harm: { diltiazem: 'Non-DHP CCBs worsen HFrEF.', ibuprofen: 'NSAIDs cause fluid retention and worsen HF.', pioglitazone: 'TZDs cause fluid retention and worsen HF.' } },
+  { cond: 'AFib', title: 'AFib: rate control and stroke prevention', short: 'Age 72 · HR 128 · CHA₂DS₂-VASc 4 · EF 60% · normal kidneys',
+    case: 'A 72-year-old woman with atrial fibrillation, heart rate 128, hypertension, and type 2 diabetes. CHA₂DS₂-VASc 4. EF 60% and normal kidney function.',
+    slots: [{ name: 'Anticoagulant', ok: ['apixaban', 'dabigatran', 'warfarin'], why: 'CHA₂DS₂-VASc 4 needs anticoagulation; DOACs are preferred over warfarin.' },
+            { name: 'Rate control', ok: ['metsucc', 'diltiazem'], why: 'A beta-blocker or non-DHP CCB controls rate when EF is preserved.' }],
+    harm: { ibuprofen: 'NSAIDs add bleeding risk on an anticoagulant.', aspirin: 'Aspirin isn’t recommended for AFib stroke prevention and adds bleeding.' },
+    conflict: { apixaban: { warfarin: ANTICOAG_STACK, dabigatran: ANTICOAG_STACK }, dabigatran: { apixaban: ANTICOAG_STACK, warfarin: ANTICOAG_STACK }, warfarin: { apixaban: ANTICOAG_STACK, dabigatran: ANTICOAG_STACK },
+                metsucc: { diltiazem: 'Pick one AV-nodal agent to start; stacking them risks bradycardia.' }, diltiazem: { metsucc: 'Pick one AV-nodal agent to start; stacking them risks bradycardia.' } } },
+  { cond: 'AFib', title: 'AFib with HFrEF', short: 'Age 68 · HR 120 · EF 25% · CHA₂DS₂-VASc 3',
+    case: 'A 68-year-old man with atrial fibrillation, heart rate 120, hypertension, and heart failure with EF 25%. CHA₂DS₂-VASc 3.',
+    slots: [{ name: 'Anticoagulant', ok: ['apixaban', 'dabigatran', 'warfarin'], why: 'CHA₂DS₂-VASc 3 needs anticoagulation.' },
+            { name: 'Rate control safe in HFrEF', ok: ['metsucc', 'carvedilol', 'digoxin'], why: 'Use an evidence-based beta-blocker (or digoxin) when EF is reduced.' }],
+    harm: { diltiazem: 'Non-DHP CCBs are avoided in HFrEF.', verapamil: 'Non-DHP CCBs are avoided in HFrEF.', ibuprofen: 'NSAIDs add bleeding and worsen HF.' },
+    conflict: { apixaban: { warfarin: ANTICOAG_STACK, dabigatran: ANTICOAG_STACK }, dabigatran: { apixaban: ANTICOAG_STACK, warfarin: ANTICOAG_STACK }, warfarin: { apixaban: ANTICOAG_STACK, dabigatran: ANTICOAG_STACK } } },
+  { cond: 'AFib', title: 'AFib with a mechanical valve', short: 'Mechanical mitral valve · HR 110 · EF 55%',
+    case: 'A 66-year-old with a mechanical mitral valve develops atrial fibrillation with heart rate 110. EF 55%.',
+    slots: [{ name: 'Valve-safe anticoagulant', ok: ['warfarin'], why: 'Warfarin is the only option with a mechanical valve.' },
+            { name: 'Rate control', ok: ['metsucc', 'diltiazem'], why: 'A beta-blocker or non-DHP CCB controls rate with preserved EF.' }],
+    harm: { apixaban: 'DOACs are contraindicated with mechanical heart valves.', dabigatran: 'Dabigatran increased clots and bleeding with mechanical valves.', aspirin: 'Aspirin alone won’t protect a mechanical valve.' },
+    conflict: { metsucc: { diltiazem: 'Pick one AV-nodal agent to start; stacking them risks bradycardia.' }, diltiazem: { metsucc: 'Pick one AV-nodal agent to start; stacking them risks bradycardia.' } } },
+];
+
+/* ---------------- Storage ---------------- */
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+};
+let bests = store.get('refillRocketBests', {});
+function showBests() { document.querySelectorAll('.best').forEach(el => el.textContent = bests[el.dataset.m] ? 'Best: ' + bests[el.dataset.m] : ''); }
+
+/* ---------------- State ---------------- */
+let mode = 'HTN', state = 'menu', queue = [], pt = null, filled = [], taken = [];
+let y = H / 2, vy = 0, thrust = false, hearts = 3, score = 0, treated = 0, dist = 0, t = 0, clock = 0, speed = 230;
+let objs = [], parts = [], nextEvt = 0, invuln = 0, toastT = 0, log = [];
+
+function overlay(id) { ['#o-start', '#o-patient', '#o-done', '#o-pause', '#o-over'].forEach(s => $(s).hidden = s !== id); }
+function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+
+document.querySelectorAll('.mode').forEach(b => b.onclick = () => startRun(b.dataset.m));
+function startRun(m) {
+  mode = m; queue = []; hearts = 3; score = 0; treated = 0; dist = 0; t = 0; speed = 230; log = [];
+  y = H / 2; vy = 0; objs = []; parts = []; invuln = 0;
+  nextPatient();
+}
+function nextPatient() {
+  if (!queue.length) queue = shuffle(PATIENTS.filter(p => mode === 'ALL' || p.cond === mode).slice());
+  pt = queue.shift(); filled = pt.slots.map(() => null); taken = [];
+  objs = objs.filter(o => o.type === 'coin');
+  $('#p-kicker').textContent = (pt.cond === 'AFib' ? 'Atrial fibrillation' : pt.cond === 'HF' ? 'Heart failure' : 'Hypertension') + ' · Patient ' + (treated + 1);
+  $('#p-title').textContent = pt.title;
+  $('#p-case').textContent = pt.case;
+  $('#p-needs').textContent = `Regimen: ${pt.slots.length} medications to collect.`;
+  renderChart(); hud();
+  state = 'brief'; overlay('#o-patient'); $('#p-go').focus();
+}
+$('#p-go').onclick = () => { state = 'play'; overlay(null); nextEvt = 0.6; $('#hint').hidden = false; setTimeout(() => $('#hint').hidden = true, 2500); cv.focus({ preventScroll: true }); };
+$('#d-next').onclick = () => nextPatient();
+$('#again').onclick = () => startRun(mode);
+$('#menu').onclick = () => { state = 'menu'; showBests(); overlay('#o-start'); };
+$('#pauseBtn').onclick = () => pause();
+$('#resume').onclick = () => pause();
+$('#quit').onclick = () => gameOver('Run ended');
+function pause() {
+  if (state === 'play') { state = 'paused'; thrust = false; overlay('#o-pause'); }
+  else if (state === 'paused') { state = 'play'; overlay(null); cv.focus({ preventScroll: true }); }
+}
+
+function renderChart() {
+  $('#c-tag').textContent = pt.cond; $('#c-tag').className = 'tag ' + pt.cond;
+  $('#c-title').textContent = pt.title; $('#c-case').textContent = pt.short;
+  $('#c-slots').innerHTML = pt.slots.map((s, i) => filled[i] ? `<span class="slot done"><b>✓</b> ${s.name}: ${D[filled[i]][0]}</span>` : `<span class="slot">Slot ${i + 1} · ?</span>`).join('');
+}
+function hud() {
+  $('#h-score').textContent = Math.floor(score); $('#h-pts').textContent = treated;
+  $('#h-hearts').innerHTML = [0, 1, 2].map(i => i < hearts ? '♥' : '<span class="lost">♥</span>').join('');
+}
+function toast(cls, title, body, dur = 3) { const el = $('#toast'); el.className = 'toast ' + cls; el.innerHTML = `<b>${title}</b>${body}`; el.style.opacity = 1; toastT = dur; }
+
+/* ---------------- Input ---------------- */
+const isUI = e => e.target.closest('button, .overlay');
+window.addEventListener('pointerdown', e => { if (isUI(e)) return; if (state === 'play') { thrust = true; e.preventDefault(); } });
+window.addEventListener('pointerup', () => thrust = false);
+window.addEventListener('pointercancel', () => thrust = false);
+window.addEventListener('keydown', e => {
+  if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') { if (state === 'play') { e.preventDefault(); thrust = true; } }
+  else if (e.code === 'KeyP' || e.code === 'Escape') pause();
+});
+window.addEventListener('keyup', e => { if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') thrust = false; });
+window.addEventListener('blur', () => { thrust = false; if (state === 'play') pause(); });
+
+/* ---------------- Spawning ---------------- */
+function activeConflicts() {
+  const out = {};
+  if (!pt.conflict) return out;
+  taken.forEach(k => Object.assign(out, pt.conflict[k] || {}));
+  return out;
+}
+function pickMed() {
+  const need = [...new Set(pt.slots.flatMap((s, i) => filled[i] ? [] : s.ok))].filter(k => !activeConflicts()[k]);
+  const harm = Object.keys(pt.harm).concat(Object.keys(activeConflicts()));
+  const good = Math.random() < .55 && need.length;
+  return good ? need[Math.floor(Math.random() * need.length)] : harm[Math.floor(Math.random() * harm.length)];
+}
+function spawn() {
+  const r = Math.random();
+  if (r < .5) {
+    // a pair of meds stacked, so you have to choose
+    const a = pickMed(); let b = pickMed(); let g = 0; while (b === a && g++ < 6) b = pickMed();
+    const top = CEIL + 50 + Math.random() * 60, bottom = FLOOR - 50 - Math.random() * 60;
+    objs.push({ type: 'med', k: a, x: W + 80, y: top }); if (b !== a) objs.push({ type: 'med', k: b, x: W + 80, y: bottom });
+    for (let i = 0; i < 5; i++) objs.push({ type: 'coin', x: W + 180 + i * 28, y: (top + bottom) / 2 + Math.sin(i) * 10 });
+    return 1.7;
+  } else if (r < .85) {
+    const kind = Math.random();
+    const len = 110 + Math.random() * 60;
+    let ang = kind < .33 ? Math.PI / 2 : kind < .66 ? 0 : (Math.random() < .5 ? .7 : -.7);
+    const cy = CEIL + 60 + Math.random() * (FLOOR - CEIL - 120);
+    objs.push({ type: 'zap', x: W + 100, y: cy, len, ang, spin: Math.random() < .25 ? (Math.random() < .5 ? 1.4 : -1.4) : 0 });
+    if (Math.random() < .5) objs.push({ type: 'med', k: pickMed(), x: W + 260, y: cy < H / 2 ? FLOOR - 60 : CEIL + 60 });
+    return 1.45;
+  } else {
+    const yy = CEIL + 60 + Math.random() * (FLOOR - CEIL - 120);
+    for (let i = 0; i < 8; i++) objs.push({ type: 'coin', x: W + 40 + i * 26, y: yy + Math.sin(i * .8) * 30 });
+    return 1.0;
+  }
+}
+
+/* ---------------- Rules ---------------- */
+function grab(o) {
+  const k = o.k, name = D[k][0];
+  const conf = activeConflicts()[k];
+  const harm = conf || pt.harm[k];
+  burst(o.x, o.y, harm ? '#e5484d' : '#16a34a');
+  if (harm) {
+    hearts--; invuln = 1; log.push({ bad: true, pt: pt.title, txt: `${name}: ${harm}` });
+    toast('bad', `${name} · harmful for this patient`, harm, 3.6); hud();
+    if (hearts <= 0) gameOver('Patient harmed'); return;
+  }
+  const idx = pt.slots.findIndex((s, i) => !filled[i] && s.ok.includes(k));
+  if (idx < 0) { score += 20; toast('good', name, 'Already covered.', 1.4); return; }
+  filled[idx] = k; taken.push(k); score += 150;
+  toast('good', `${name} fills ${pt.slots[idx].name}`, pt.slots[idx].why, 3);
+  renderChart(); hud();
+  if (filled.every(Boolean)) {
+    treated++; score += 500; hearts = Math.min(3, hearts + 1); hud();
+    state = 'done'; thrust = false;
+    setTimeout(() => {
+      $('#d-title').textContent = pt.title;
+      $('#d-list').innerHTML = pt.slots.map((s, i) => `<div><b>${s.name}: ${D[filled[i]][0]}</b><span>${s.why}</span></div>`).join('');
+      overlay('#o-done'); $('#d-next').focus();
+    }, 600);
+  }
+}
+function zapped() {
+  if (invuln > 0) return;
+  hearts--; invuln = 1.4; vy = 200; hud(); burst(PX, y, '#facc15');
+  toast('bad', 'Zapped!', 'The ECG zappers cost a safety heart.', 1.8);
+  if (hearts <= 0) gameOver('Crashed into a zapper');
+}
+function gameOver(why) {
+  state = 'over'; thrust = false;
+  const s = Math.floor(score); const best = s > (bests[mode] || 0); if (best) { bests[mode] = s; store.set('refillRocketBests', bests); }
+  $('#v-kicker').textContent = ({ HTN: 'Hypertension', HF: 'Heart failure', AFib: 'Atrial fibrillation', ALL: 'Mixed clinic' })[mode] + ' · ' + why;
+  $('#v-title').textContent = treated ? `${treated} patient${treated > 1 ? 's' : ''} treated` : 'Run over';
+  $('#v-score').textContent = s; $('#v-pts').textContent = treated; $('#v-dist').textContent = Math.floor(dist / 10) + ' m';
+  $('#v-best').textContent = best && s > 0 ? 'New best score!' : 'Best: ' + (bests[mode] || 0);
+  $('#v-list').innerHTML = log.length ? log.map(l => `<div class="bad"><b>${l.pt}</b><span>${l.txt}</span></div>`).join('') : '<div><b>No harmful picks this run.</b></div>';
+  overlay('#o-over');
+}
+function burst(x, yy, c) { for (let i = 0; i < 16; i++) parts.push({ x, y: yy, vx: (Math.random() - .5) * 300, vy: (Math.random() - .5) * 300, c, life: .7 }); }
+
+function segDist(px, py, ax, ay, bx, by) { const dx = bx - ax, dy = by - ay; const tt = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / (dx * dx + dy * dy))); return Math.hypot(px - (ax + tt * dx), py - (ay + tt * dy)); }
+
+function update(dt) {
+  clock += dt;
+  if (toastT > 0) { toastT -= dt; if (toastT <= 0) $('#toast').style.opacity = 0; }
+  for (const p of parts) { p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 400 * dt; p.life -= dt; }
+  parts = parts.filter(p => p.life > 0);
+  if (state !== 'play') return;
+  t += dt; speed = Math.min(420, 230 + t * 2.2);
+  dist += speed * dt; score += speed * dt * .02;
+  invuln = Math.max(0, invuln - dt);
+  vy += (thrust ? -2300 : 1300) * dt; vy = Math.max(-430, Math.min(520, vy)); y += vy * dt;
+  if (y < CEIL + 22) { y = CEIL + 22; vy = 0; } if (y > FLOOR - 26) { y = FLOOR - 26; vy = 0; }
+  if (thrust) parts.push({ x: PX - 22, y: y + 22, vx: -120 - Math.random() * 60, vy: 160 + Math.random() * 80, c: Math.random() < .5 ? '#f97316' : '#facc15', life: .3 });
+  nextEvt -= dt; if (nextEvt <= 0) nextEvt = spawn() * (230 / speed) * 1.15;
+  for (const o of objs) {
+    o.x -= speed * dt;
+    if (o.dead) continue;
+    if (o.type === 'zap') {
+      o.ang += o.spin * dt;
+      const hx = Math.cos(o.ang) * o.len / 2, hy = Math.sin(o.ang) * o.len / 2;
+      if (segDist(PX, y, o.x - hx, o.y - hy, o.x + hx, o.y + hy) < 26) zapped();
+    } else if (o.type === 'coin') {
+      if (Math.hypot(o.x - PX, o.y - y) < 26) { o.dead = true; score += 10; }
+    } else if (o.type === 'med') {
+      if (Math.abs(o.x - PX) < 40 && Math.abs(o.y - y) < 44) { o.dead = true; grab(o); if (state !== 'play') return; }
+    }
+  }
+  objs = objs.filter(o => o.x > -160 && !o.dead);
+  if (Math.floor(clock * 5) !== Math.floor((clock - dt) * 5)) hud();
+}
+
+/* ---------------- Drawing ---------------- */
+function rr(x, yy, w, h, r) { ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, yy, w, h, r) : ctx.rect(x, yy, w, h); }
+function drawBg() {
+  const g = ctx;
+  g.fillStyle = '#f4f8fb'; g.fillRect(0, 0, W, H);
+  // far wall: shelving with boxes
+  const off = (dist * .3) % 160;
+  for (let x = -off; x < W + 160; x += 160) {
+    g.fillStyle = '#e2ebf2'; g.fillRect(x + 10, 70, 140, 250);
+    for (let s = 0; s < 4; s++) {
+      const sy = 120 + s * 62; g.fillStyle = '#c9d6e2'; g.fillRect(x + 10, sy, 140, 5);
+      for (let b = 0; b < 5; b++) { const hue = ['#fca5a5', '#93c5fd', '#fde68a', '#a7f3d0', '#c4b5fd'][(b + s + Math.round(x)) % 5]; g.fillStyle = hue; g.fillRect(x + 16 + b * 27, sy - 22 - (b % 2) * 6, 20, 22 + (b % 2) * 6); }
+    }
+  }
+  // ECG trace along the wall
+  g.strokeStyle = 'rgba(229,72,77,.25)'; g.lineWidth = 2; g.beginPath();
+  const eo = (dist * .6) % 120;
+  for (let x = -eo; x < W + 120; x += 120) { g.moveTo(x, 50); g.lineTo(x + 40, 50); g.lineTo(x + 48, 40); g.lineTo(x + 54, 66); g.lineTo(x + 60, 24); g.lineTo(x + 68, 56); g.lineTo(x + 74, 50); g.lineTo(x + 120, 50); }
+  g.stroke();
+  // ceiling + floor
+  g.fillStyle = '#10243a'; g.fillRect(0, 0, W, CEIL);
+  g.fillStyle = '#fef3c7'; const lo = (dist) % 180; for (let x = -lo; x < W; x += 180) g.fillRect(x + 40, CEIL - 6, 90, 6);
+  g.fillStyle = '#cbd5e1'; g.fillRect(0, FLOOR, W, H - FLOOR);
+  g.fillStyle = '#b6c3d1'; const fo = dist % 60; for (let x = -fo; x < W; x += 60) g.fillRect(x, FLOOR, 2, H - FLOOR);
+  g.fillStyle = '#94a3b8'; g.fillRect(0, FLOOR, W, 4);
+}
+function drawZap(o) {
+  const g = ctx; const hx = Math.cos(o.ang) * o.len / 2, hy = Math.sin(o.ang) * o.len / 2;
+  const ax = o.x - hx, ay = o.y - hy, bx = o.x + hx, by = o.y + hy;
+  g.strokeStyle = 'rgba(250,204,21,.35)'; g.lineWidth = 16; g.lineCap = 'round'; g.beginPath(); g.moveTo(ax, ay); g.lineTo(bx, by); g.stroke();
+  // ECG zigzag between nodes
+  g.strokeStyle = '#facc15'; g.lineWidth = 3; g.beginPath();
+  const n = 12, nx = -Math.sin(o.ang), ny = Math.cos(o.ang);
+  for (let i = 0; i <= n; i++) { const f = i / n; const amp = (i % 3 === 1 ? 12 : i % 3 === 2 ? -8 : 0) * Math.sin(clock * 30 + i); const px = ax + (bx - ax) * f + nx * amp, py = ay + (by - ay) * f + ny * amp; i ? g.lineTo(px, py) : g.moveTo(px, py); }
+  g.stroke();
+  [[ax, ay], [bx, by]].forEach(([x, yy]) => { g.fillStyle = '#10243a'; g.beginPath(); g.arc(x, yy, 12, 0, 7); g.fill(); g.fillStyle = '#facc15'; g.beginPath(); g.arc(x, yy, 5, 0, 7); g.fill(); });
+}
+function drawMed(o) {
+  const g = ctx; const [name, cls] = D[o.k]; const bob = Math.sin(clock * 3 + o.x * .02) * 4;
+  const x = o.x, yy = o.y + bob;
+  g.font = '700 16px Lexend, sans-serif'; const tw = Math.max(g.measureText(name).width, 70) + 16;
+  // bottle
+  g.fillStyle = 'rgba(16,36,58,.15)'; rr(x - 17, yy - 15, 38, 46, 8); g.fill();
+  g.fillStyle = '#e08a2c'; rr(x - 19, yy - 18, 38, 44, 8); g.fill();
+  g.fillStyle = '#fff'; rr(x - 22, yy - 28, 44, 12, 4); g.fill(); g.strokeStyle = '#10243a'; g.lineWidth = 2; g.stroke();
+  g.fillStyle = '#fbf6ea'; g.fillRect(x - 15, yy - 8, 30, 22);
+  g.fillStyle = '#10243a'; g.font = '800 10px Lexend, sans-serif'; g.textAlign = 'center'; g.fillText('Rx', x, yy + 6);
+  // label tag
+  g.fillStyle = '#10243a'; rr(x - tw / 2, yy + 32, tw, 40, 8); g.fill();
+  g.fillStyle = '#fff'; g.font = '700 16px Lexend, sans-serif'; g.fillText(name, x, yy + 50);
+  g.fillStyle = '#9fd8d5'; g.font = '600 12px Lexend, sans-serif'; g.fillText(cls, x, yy + 66);
+}
+function drawCoin(o) { const g = ctx; const s = Math.abs(Math.sin(clock * 5 + o.x * .05)); g.fillStyle = '#f2b01e'; g.beginPath(); g.ellipse(o.x, o.y, 9 * (.4 + .6 * s), 9, 0, 0, 7); g.fill(); g.strokeStyle = '#b07d0c'; g.lineWidth = 2; g.stroke(); }
+function drawPlayer() {
+  const g = ctx; const blink = invuln > 0 && Math.floor(clock * 12) % 2 === 0;
+  if (blink) return;
+  g.save(); g.translate(PX, y); g.rotate(Math.max(-.25, Math.min(.25, vy / 1500)));
+  // jetpack
+  g.fillStyle = '#64748b'; rr(-30, -18, 16, 36, 5); g.fill();
+  g.fillStyle = '#e5484d'; rr(-28, -14, 12, 8, 3); g.fill();
+  // body: white coat
+  g.fillStyle = '#ffffff'; g.strokeStyle = '#10243a'; g.lineWidth = 2; rr(-16, -14, 30, 36, 8); g.fill(); g.stroke();
+  g.fillStyle = '#0e9f9a'; g.fillRect(-2, -12, 4, 30);
+  // legs
+  g.strokeStyle = '#10243a'; g.lineWidth = 6; g.lineCap = 'round';
+  const kick = thrust ? 0 : Math.sin(clock * 12) * 4;
+  g.beginPath(); g.moveTo(-6, 22); g.lineTo(-8 + kick, 34); g.moveTo(6, 22); g.lineTo(8 - kick, 34); g.stroke();
+  // arm holding a pill bottle
+  g.strokeStyle = '#8d5a3b'; g.lineWidth = 5; g.beginPath(); g.moveTo(10, -6); g.lineTo(22, 2); g.stroke();
+  // head
+  g.fillStyle = '#8d5a3b'; g.beginPath(); g.arc(0, -26, 12, 0, 7); g.fill();
+  g.fillStyle = '#1f2937'; g.beginPath(); g.arc(-1, -30, 12, Math.PI * 1.05, Math.PI * 2.05); g.fill();
+  g.fillStyle = '#10243a'; g.beginPath(); g.arc(6, -25, 2, 0, 7); g.fill();
+  // stethoscope
+  g.strokeStyle = '#334155'; g.lineWidth = 2; g.beginPath(); g.arc(0, -10, 8, 0, Math.PI); g.stroke();
+  g.restore();
+}
+function render() {
+  drawBg();
+  for (const o of objs) if (o.type === 'coin') drawCoin(o);
+  for (const o of objs) if (o.type === 'zap') drawZap(o);
+  for (const o of objs) if (o.type === 'med') drawMed(o);
+  for (const p of parts) { ctx.globalAlpha = Math.max(0, p.life * 1.5); ctx.fillStyle = p.c; ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, 7); ctx.fill(); ctx.globalAlpha = 1; }
+  drawPlayer();
+}
+
+let last = 0;
+function fit() { const d = Math.min(2, window.devicePixelRatio || 1); const r = cv.getBoundingClientRect(); const w = Math.round(r.width * d), h = Math.round(r.height * d); if (w && (cv.width !== w || cv.height !== h)) { cv.width = w; cv.height = h; } ctx.setTransform(cv.width / W, 0, 0, cv.height / H, 0, 0); }
+function frame(now) {
+  const dt = Math.min(.033, (now - (last || now)) / 1000); last = now;
+  fit();
+  if (state === 'menu') { dist += 120 * dt; clock += dt; y = H / 2 + Math.sin(clock * 2) * 20; } else update(dt);
+  render(); requestAnimationFrame(frame);
+}
+showBests(); hud();
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

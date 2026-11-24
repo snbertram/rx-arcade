@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Pain Puzzles</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&family=Figtree:wght@400;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+/* Layout: a puzzle-book page. Topic chips and mode tabs on top, one puzzle board below with its clue list beside it (stacked on phones). */
+:root{
+  --paper:#fbf6ec; --card:#fffdf8; --ink:#2b2320; --muted:#7a6c62; --line:#e4d8c6; --line2:#cdbda6;
+  --red:#c8452f; --red-soft:#f7ddd6; --teal:#1f7a73; --teal-soft:#d6ece8; --gold:#c08a12; --gold-soft:#f6e7bf;
+  --good:#2e8a4f; --bad:#c8452f;
+  --f-display:"Fraunces",Georgia,serif; --f-body:"Figtree",system-ui,-apple-system,"Segoe UI",sans-serif; --f-mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root{
+  --paper:#1d1916; --card:#26211d; --ink:#f1e8dc; --muted:#b3a597; --line:#3a322b; --line2:#4d4238;
+  --red:#ef7a62; --red-soft:#4a2a22; --teal:#5cc2b6; --teal-soft:#1d3a36; --gold:#e2b14a; --gold-soft:#463a1d; --good:#6fd08f; --bad:#ef7a62; color-scheme:dark}}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.5}
+.wrap{max-width:1080px;margin:0 auto;padding:24px max(16px,env(safe-area-inset-left,0px)) 48px max(16px,env(safe-area-inset-right,0px))}
+h1,h2,h3{font-family:var(--f-display);margin:0;line-height:1.1;text-wrap:balance}
+p{margin:0}
+button,select,input{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--teal);outline-offset:2px}
+header{display:grid;gap:8px;margin-bottom:18px}
+header h1{font-size:clamp(2rem,6vw,3.2rem);font-weight:800;letter-spacing:-.01em}
+header h1 em{font-style:normal;color:var(--red)}
+.lead{color:var(--muted);max-width:62ch}
+.label{font-family:var(--f-mono);font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.controls{display:grid;gap:12px;margin-bottom:18px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1px solid var(--line2);background:var(--card);border-radius:999px;padding:6px 13px;font-size:.9rem;font-weight:600}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.tabs{display:flex;gap:0;border-bottom:2px solid var(--line);flex-wrap:wrap}
+.tab{border:0;background:none;padding:10px 16px;font-family:var(--f-display);font-weight:600;font-size:1.05rem;color:var(--muted);border-bottom:3px solid transparent;margin-bottom:-2px}
+.tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--red)}
+.mode[hidden]{display:none}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:14px}
+.btn{border:1px solid var(--line2);background:var(--card);border-radius:8px;padding:7px 12px;font-size:.9rem;font-weight:600}
+.btn.primary{background:var(--red);border-color:var(--red);color:#fff}
+.btn:disabled{opacity:.45;cursor:default}
+.pill{font-family:var(--f-mono);font-size:.8rem;padding:4px 10px;border-radius:999px;background:var(--gold-soft);color:var(--ink)}
+.toggle{display:flex;gap:6px;align-items:center;font-size:.88rem;color:var(--muted)}
+.board-row{display:grid;grid-template-columns:auto minmax(0,1fr);gap:24px;align-items:start}
+@media (max-width:820px){.board-row{grid-template-columns:minmax(0,1fr)}}
+.sheet{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;box-shadow:0 8px 22px -18px rgba(60,40,20,.5)}
+.status{min-height:1.5em;font-weight:600;margin-top:10px}
+.status.win{color:var(--good)}
+
+/* Word search */
+.ws{display:grid;gap:2px;touch-action:none;user-select:none;-webkit-user-select:none;position:relative}
+.ws .c{width:var(--cs);height:var(--cs);display:grid;place-items:center;font-family:var(--f-mono);font-weight:600;font-size:calc(var(--cs)*.5);border-radius:50%;cursor:pointer;position:relative}
+.ws .c.sel{background:var(--gold-soft);box-shadow:inset 0 0 0 2px var(--gold)}
+.ws .c.anchor{box-shadow:inset 0 0 0 2px var(--red)}
+.ws .c.found{color:var(--ink);background:var(--fc)}
+.ws .c.reveal{box-shadow:inset 0 0 0 2px var(--line2);color:var(--red)}
+.clist{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.clist li{display:grid;grid-template-columns:auto minmax(0,1fr);gap:10px;align-items:start;padding:8px 10px;border-radius:10px;border:1px solid var(--line);background:var(--card)}
+.clist li .ans{font-family:var(--f-mono);font-weight:600;letter-spacing:.06em;font-size:.86rem;min-width:7ch;padding:1px 8px;border-radius:6px;background:var(--paper);color:var(--muted)}
+.clist li.done{background:var(--fc,var(--teal-soft));border-color:transparent}
+.clist li.done .ans{color:var(--ink);background:transparent}
+.clist li .cl{font-size:.94rem}
+
+/* Crossword */
+.cw-wrap{position:relative;overflow-x:auto;max-width:100%}
+.cwgrid{display:grid;gap:0;border:2px solid var(--ink);width:max-content;background:var(--ink)}
+.cwgrid .cell{width:var(--cs);height:var(--cs);background:transparent;position:relative}
+.cwgrid .cell.on{background:var(--card);outline:1px solid var(--line2);cursor:pointer}
+.cwgrid .cell .n{position:absolute;top:1px;left:2px;font-size:calc(var(--cs)*.28);font-family:var(--f-mono);color:var(--muted);line-height:1}
+.cwgrid .cell .ch{display:grid;place-items:center;height:100%;font-family:var(--f-mono);font-weight:600;font-size:calc(var(--cs)*.55);text-transform:uppercase}
+.cwgrid .cell.word{background:var(--teal-soft)}
+.cwgrid .cell.cur{background:var(--gold-soft)}
+.cwgrid .cell.right .ch{color:var(--good)}
+.cwgrid .cell.wrong .ch{color:var(--bad)}
+.cwgrid .cell.rev .ch{color:var(--muted)}
+.cwin{position:absolute;opacity:0;width:1px;height:1px;left:0;top:0;border:0;padding:0}
+.curclue{font-weight:600;margin-bottom:10px;min-height:1.5em}
+.clues h3{font-size:1.05rem;margin:4px 0 6px}
+.clues ol{list-style:none;margin:0 0 14px;padding:0;display:grid;gap:2px;font-size:.92rem}
+.clues li{padding:4px 8px;border-radius:6px;cursor:pointer;display:grid;grid-template-columns:2.2em minmax(0,1fr)}
+.clues li b{font-family:var(--f-mono)}
+.clues li.cur{background:var(--gold-soft)}
+.clues li.done{color:var(--muted);text-decoration:line-through}
+.clue-scroll{max-height:520px;overflow:auto;padding-right:4px}
+
+/* Term guess */
+.tg{display:grid;gap:14px;justify-items:center}
+.tg-meta{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.tg-board{display:grid;gap:5px}
+.tg-row{display:flex;gap:5px;justify-content:center}
+.tile{width:var(--ts);height:var(--ts);border:2px solid var(--line2);display:grid;place-items:center;font-family:var(--f-mono);font-weight:600;font-size:calc(var(--ts)*.5);border-radius:6px;background:var(--card)}
+.tile.f{border-color:var(--ink)}
+.tile.g{background:#3f8f5a;border-color:#3f8f5a;color:#fff}
+.tile.y{background:#c99a17;border-color:#c99a17;color:#fff}
+.tile.x{background:#8a8078;border-color:#8a8078;color:#fff}
+.tile.hint{color:var(--muted);border-style:dashed}
+.kb{display:grid;gap:6px;width:100%;max-width:520px}
+.kr{display:flex;gap:5px;justify-content:center}
+.kr button{flex:1;min-width:0;padding:12px 0;border-radius:6px;border:0;background:var(--line);font-weight:700;font-size:.9rem}
+.kr button.wide{flex:1.6}
+.kr button.g{background:#3f8f5a;color:#fff}.kr button.y{background:#c99a17;color:#fff}.kr button.x{background:#8a8078;color:#fff}
+.hintbox{display:none;background:var(--gold-soft);padding:8px 12px;border-radius:8px;max-width:520px;text-align:center}
+.hintbox.on{display:block}
+.result{display:none;padding:10px 14px;border-radius:10px;background:var(--teal-soft);max-width:520px;text-align:center}
+.result.on{display:block}
+.result.lose{background:var(--red-soft)}
+footer{margin-top:36px;color:var(--muted);font-size:.85rem}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style></head>
+<body>
+<div class="wrap">
+<header>
+  <span class="label">Word puzzles · pain &amp; analgesia</span>
+  <h1>Pain <em>Puzzles</em></h1>
+  <p class="lead">Word searches, crosswords and a daily-style term guess built from pain pharmacology, analgesics and pain management vocabulary. Pick a topic, then a puzzle.</p>
+</header>
+<div class="controls">
+  <div><div class="label" style="margin-bottom:6px">Topic</div><div class="chips" id="topics" role="group" aria-label="Topic"></div></div>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" data-m="ws" aria-selected="true">Word search</button>
+    <button class="tab" role="tab" data-m="cw" aria-selected="false">Crossword</button>
+    <button class="tab" role="tab" data-m="tg" aria-selected="false">Term guess</button>
+  </div>
+</div>
+
+<section class="mode" id="m-ws">
+  <div class="bar">
+    <button class="btn primary" id="ws-new">New puzzle</button>
+    <button class="btn" id="ws-reveal">Reveal answers</button>
+    <label class="toggle"><input type="checkbox" id="ws-show"> Show the word list (easier)</label>
+    <span class="pill" id="ws-count"></span>
+  </div>
+  <div class="board-row">
+    <div class="sheet"><div class="ws" id="ws-grid"></div><p class="status" id="ws-status"></p></div>
+    <div><p class="label" style="margin-bottom:8px">Find the term for each clue · drag across the letters, or tap the first and last letter</p><ol class="clist" id="ws-clues"></ol></div>
+  </div>
+</section>
+
+<section class="mode" id="m-cw" hidden>
+  <div class="bar">
+    <label class="toggle"><input type="checkbox" id="cw-live" checked> Show right/wrong as I type</label>
+    <button class="btn" data-a="check">Check all</button>
+    <button class="btn" data-a="revw">Reveal word</button>
+    <button class="btn" data-a="reva">Reveal puzzle</button>
+    <button class="btn" data-a="clr">Clear</button>
+    <span class="pill" id="cw-prog"></span>
+  </div>
+  <div class="curclue" id="cw-cur"></div>
+  <div class="board-row">
+    <div class="sheet cw-wrap"><div class="cwgrid" id="cw-grid"></div><input class="cwin" id="cw-in" autocomplete="off" autocapitalize="characters" aria-label="Crossword letter entry"></div>
+    <div class="clues clue-scroll"><h3>Across</h3><ol id="cw-ac"></ol><h3>Down</h3><ol id="cw-dn"></ol></div>
+  </div>
+</section>
+
+<section class="mode" id="m-tg" hidden>
+  <div class="tg">
+    <div class="tg-meta"><span class="pill" id="tg-len"></span><span class="pill">Solved <b id="tg-won">0</b> · Streak <b id="tg-streak">0</b></span></div>
+    <p class="lead" style="text-align:center">Guess the term in 6 tries. <b style="color:#3f8f5a">Green</b>: right spot. <b style="color:#c99a17">Gold</b>: in the word, wrong spot. <b style="color:#8a8078">Gray</b>: not in the word.</p>
+    <div class="bar" style="justify-content:center;margin:0"><button class="btn" id="tg-h1">Hint: show clue</button><button class="btn" id="tg-h2">Hint: reveal a letter</button><button class="btn" id="tg-give">Give up</button><button class="btn primary" id="tg-next">New word</button></div>
+    <div class="hintbox" id="tg-clue"></div>
+    <div class="tg-board" id="tg-board"></div>
+    <div class="status" id="tg-msg" style="text-align:center"></div>
+    <div class="result" id="tg-res"></div>
+    <div class="kb" id="tg-kb"></div>
+  </div>
+</section>
+
+<footer>For educational purposes only. Not clinical advice.</footer>
+</div>
+<script>
+const TOPICS=[{"id": "pain", "name": "Pain basics", "rows": 17, "cols": 16, "grid": [".......C...G....", "...S..MODULATION", "I..L.T.N...B...O", "REFERRED.H.A...C", "O..E.A.U.Y.....I", "N..P.NOCIPLASTIC", ".G...S.T.E..O..E", ".L.A.D.I.R..D..P", ".U.NEUROPATHIC.T", ".T.X.C.N.L..U..O", ".A.I.T...G..M..R", ".MYELINATED..C.S", ".A.T.O...S.A.O..", ".T.Y.N..VISCERAL", ".E.......A.U.T..", "...........T.E..", ".NOCICEPTIVE.X.."], "words": [{"w": "NEUROPATHIC", "r": 8, "c": 3, "d": "A", "clue": "Pain type from CNS/PNS damage (e.g., postherpetic neuralgia)", "n": 14}, {"w": "TRANSDUCTION", "r": 2, "c": 5, "d": "D", "clue": "Nociception process: noxious stimuli activate nociceptors", "n": 7}, {"w": "HYPERALGESIA", "r": 3, "c": 9, "d": "D", "clue": "Abnormally increased pain to a painful stimulus", "n": 9}, {"w": "NOCIPLASTIC", "r": 5, "c": 5, "d": "A", "clue": "Pain type of fibromyalgia: altered nociception, no damage", "n": 10}, {"w": "NOCICEPTORS", "r": 1, "c": 15, "d": "D", "clue": "Sensory pain receptors", "n": 5}, {"w": "MYELINATED", "r": 11, "c": 1, "d": "A", "clue": "A-delta fibers are this, so they conduct fast", "n": 15}, {"w": "MODULATION", "r": 1, "c": 6, "d": "A", "clue": "Nociception process: descending pathways turn pain up or down", "n": 4}, {"w": "CONDUCTION", "r": 0, "c": 7, "d": "D", "clue": "Nociception process: action potentials travel along first-order neurons", "n": 1}, {"w": "GLUTAMATE", "r": 6, "c": 1, "d": "D", "clue": "Excitatory NT (with substance P) released in the dorsal horn", "n": 12}, {"w": "ANXIETY", "r": 7, "c": 3, "d": "D", "clue": "Psychological response typical of acute pain", "n": 13}, {"w": "VISCERAL", "r": 13, "c": 8, "d": "A", "clue": "Pain from internal organs; hard to localize", "n": 18}, {"w": "REFERRED", "r": 3, "c": 0, "d": "A", "clue": "MI felt in the left arm is ___ pain", "n": 8}, {"w": "ACUTE", "r": 12, "c": 11, "d": "D", "clue": "Pain lasting < 30 days with autonomic signs", "n": 17}, {"w": "SODIUM", "r": 5, "c": 12, "d": "D", "clue": "Voltage-gated ___ channels conduct the AP", "n": 11}, {"w": "CORTEX", "r": 11, "c": 13, "d": "D", "clue": "Where perception takes place", "n": 16}, {"w": "SLEEP", "r": 1, "c": 3, "d": "D", "clue": "RLS is classified as a ___ disorder", "n": 3}, {"w": "IRON", "r": 2, "c": 0, "d": "D", "clue": "Give for RLS when deficient", "n": 6}, {"w": "GABA", "r": 0, "c": 11, "d": "D", "clue": "Inhibitory NT (with enkephalins) used by spinal interneurons", "n": 2}, {"w": "NOCICEPTIVE", "r": 16, "c": 1, "d": "A", "clue": "Adaptive pain type from tissue damage", "n": 19}], "all": [["TRANSDUCTION", "Nociception process: noxious stimuli activate nociceptors"], ["CONDUCTION", "Nociception process: action potentials travel along first-order neurons"], ["MODULATION", "Nociception process: descending pathways turn pain up or down"], ["PERCEPTION", "Nociception process: the conscious experience of pain in the cortex"], ["GLUTAMATE", "Excitatory NT (with substance P) released in the dorsal horn"], ["ALLODYNIA", "Pain from a t-shirt on a sunburn"], ["HYPERALGESIA", "Abnormally increased pain to a painful stimulus"], ["NOCIPLASTIC", "Pain type of fibromyalgia: altered nociception, no damage"], ["NEUROPATHIC", "Pain type from CNS/PNS damage (e.g., postherpetic neuralgia)"], ["NOCICEPTIVE", "Adaptive pain type from tissue damage"], ["REFERRED", "MI felt in the left arm is ___ pain"], ["VISCERAL", "Pain from internal organs; hard to localize"], ["IRON", "Give for RLS when deficient"], ["SLEEP", "RLS is classified as a ___ disorder"], ["GABA", "Inhibitory NT (with enkephalins) used by spinal interneurons"], ["ACUTE", "Pain lasting < 30 days with autonomic signs"], ["CHRONIC", "Pain lasting months to years; few autonomic signs"], ["MYELINATED", "A-delta fibers are this, so they conduct fast"], ["SODIUM", "Voltage-gated ___ channels conduct the AP"], ["ANXIETY", "Psychological response typical of acute pain"], ["NOCICEPTORS", "Sensory pain receptors"], ["CORTEX", "Where perception takes place"]]}, {"id": "nsaid", "name": "NSAIDs & acetaminophen", "rows": 17, "cols": 17, "grid": ["OXAPROZIN........", "...R..........D..", "KETOROLAC...R.I.A", "...S........E.C.F", "GOUT.H.I..S.Y.L.F", "L..A.Y.NABUMETONE", "U..C.P.D..L.S.F.R", "T..Y.O.O..F...E.E", "A.ACETAMINOPHEN.N", "T..L.H.E..N...A.T", "H..I.ASTHMA.P.C..", "I..N.L.H..M.R....", "O....ARACHIDONIC.", "N....M.C..D.D....", "E.ALBUMIN.E.R....", ".....S.N...DUCTUS", "............G...."], "words": [{"w": "ACETAMINOPHEN", "r": 8, "c": 2, "d": "A", "clue": "Analgesic/antipyretic that is NOT an NSAID", "n": 12}, {"w": "PROSTACYCLIN", "r": 0, "c": 3, "d": "D", "clue": "PGI2: antiplatelet and vasodilator", "n": 2}, {"w": "INDOMETHACIN", "r": 4, "c": 7, "d": "D", "clue": "Indocin: gout flares, headache in up to 25%", "n": 9}, {"w": "HYPOTHALAMUS", "r": 4, "c": 5, "d": "D", "clue": "PGE2 acts on EP3 receptors here to cause fever", "n": 8}, {"w": "ARACHIDONIC", "r": 12, "c": 5, "d": "A", "clue": "Prostaglandins are made from ___ acid", "n": 15}, {"w": "SULFONAMIDE", "r": 4, "c": 10, "d": "D", "clue": "Why celecoxib can cause rash", "n": 10}, {"w": "NABUMETONE", "r": 5, "c": 7, "d": "A", "clue": "Relafen: prodrug, t1/2 26 h, easier on the stomach", "n": 11}, {"w": "KETOROLAC", "r": 2, "c": 0, "d": "A", "clue": "Potent NSAID limited to 5 days for GI bleed risk", "n": 4}, {"w": "DICLOFENAC", "r": 1, "c": 14, "d": "D", "clue": "Voltaren: very potent, t1/2 about 2 h, raises liver enzymes", "n": 3}, {"w": "OXAPROZIN", "r": 0, "c": 0, "d": "A", "clue": "Daypro: once-daily NSAID that is mildly uricosuric", "n": 1}, {"w": "AFFERENT", "r": 2, "c": 16, "d": "D", "clue": "PGs keep this arteriole open to maintain GFR", "n": 6}, {"w": "PRODRUG", "r": 10, "c": 12, "d": "D", "clue": "Sulindac and nabumetone are each a ___", "n": 14}, {"w": "DUCTUS", "r": 15, "c": 11, "d": "A", "clue": "Avoid NSAIDs in the 3rd trimester: premature closure of the ___ arteriosus", "n": 17}, {"w": "ALBUMIN", "r": 14, "c": 2, "d": "A", "clue": "Plasma protein NSAIDs are highly bound to", "n": 16}, {"w": "ASTHMA", "r": 10, "c": 5, "d": "A", "clue": "NSAIDs can trigger attacks of this in aspirin-exacerbated respiratory disease", "n": 13}, {"w": "GOUT", "r": 4, "c": 0, "d": "A", "clue": "Indomethacin is good for flares of this", "n": 7}, {"w": "REYES", "r": 2, "c": 12, "d": "D", "clue": "Syndrome risk when kids with viral infections get aspirin", "n": 5}, {"w": "GLUTATHIONE", "r": 4, "c": 0, "d": "D", "clue": "N-acetylcysteine is a precursor of this", "n": 7}], "all": [["ASPIRIN", "The only irreversible COX inhibitor"], ["REYES", "Syndrome risk when kids with viral infections get aspirin"], ["CELECOXIB", "The COX-2 selective NSAID (Celebrex)"], ["SULFONAMIDE", "Why celecoxib can cause rash"], ["KETOROLAC", "Potent NSAID limited to 5 days for GI bleed risk"], ["INDOMETHACIN", "Indocin: gout flares, headache in up to 25%"], ["OXAPROZIN", "Daypro: once-daily NSAID that is mildly uricosuric"], ["PIROXICAM", "Feldene: long half-life oxicam with more ulcer and bleed risk"], ["NABUMETONE", "Relafen: prodrug, t1/2 26 h, easier on the stomach"], ["IBUPROFEN", "Taken before aspirin, it blocks aspirin’s antiplatelet effect"], ["NAPROXEN", "Aleve: t1/2 about 12 h, so it is dosed twice daily"], ["DICLOFENAC", "Voltaren: very potent, t1/2 about 2 h, raises liver enzymes"], ["MELOXICAM", "Mobic: preferential COX-2, t1/2 ~20 h"], ["ALBUMIN", "Plasma protein NSAIDs are highly bound to"], ["AFFERENT", "PGs keep this arteriole open to maintain GFR"], ["ASTHMA", "NSAIDs can trigger attacks of this in aspirin-exacerbated respiratory disease"], ["HYPOTHALAMUS", "PGE2 acts on EP3 receptors here to cause fever"], ["ACETAMINOPHEN", "Analgesic/antipyretic that is NOT an NSAID"], ["GLUTATHIONE", "N-acetylcysteine is a precursor of this"], ["ARACHIDONIC", "Prostaglandins are made from ___ acid"], ["PROSTACYCLIN", "PGI2: antiplatelet and vasodilator"], ["THROMBOXANE", "TXA2: made by platelet COX-1, promotes clotting"], ["GOUT", "Indomethacin is good for flares of this"], ["PRODRUG", "Sulindac and nabumetone are each a ___"], ["TINNITUS", "CNS adverse effect: ringing in the ears"], ["DUCTUS", "Avoid NSAIDs in the 3rd trimester: premature closure of the ___ arteriosus"]]}, {"id": "opioid", "name": "Opioid pharmacology", "rows": 18, "cols": 19, "grid": [".HYDROCODONE..A....", "......O.......T.A.M", "..TAPENTADOL..R.L.E", "......S.......O.V.P", ".M....T..NALBUPHINE", "HISTAMINE...U.I.M.R", ".O.O..P.....P.N.O.I", ".S.L..A..P..R.E.P.D", ".I.E..T..E..E...A.I", ".S.REMIFENTANIL.N.N", "F..A..O..T..O..C..E", "E..N..N.NALTREXONE.", "N..C.....Z..P..D..K", "T..E....MORPHINE..A", "A........C..I..I..P", "N..SUZETRIGINE.N..P", "Y........N..E.DELTA", "LOPERAMIDE........."], "words": [{"w": "REMIFENTANIL", "r": 9, "c": 3, "d": "A", "clue": "Ultiva: esterase metabolism, ultra-short; anesthesia", "n": 13}, {"w": "BUPRENORPHINE", "r": 4, "c": 12, "d": "D", "clue": "Partial MOR agonist + KOR antagonist; hard to reverse with naloxone", "n": 9}, {"w": "SUZETRIGINE", "r": 15, "c": 3, "d": "A", "clue": "Journavx: NaV1.8 blocker, non-opioid", "n": 19}, {"w": "CONSTIPATION", "r": 0, "c": 6, "d": "D", "clue": "GI effect with no tolerance; give laxatives", "n": 2}, {"w": "HYDROCODONE", "r": 0, "c": 1, "d": "A", "clue": "In Lortab/Norco; metabolized to hydromorphone", "n": 1}, {"w": "PENTAZOCINE", "r": 7, "c": 9, "d": "D", "clue": "Oldest mixed agonist-antagonist", "n": 12}, {"w": "NALBUPHINE", "r": 4, "c": 9, "d": "A", "clue": "KOR agonist/MOR antagonist with a respiratory ceiling", "n": 8}, {"w": "TAPENTADOL", "r": 2, "c": 2, "d": "A", "clue": "Nucynta: mu agonist + NET inhibitor, C-II", "n": 6}, {"w": "NALTREXONE", "r": 11, "c": 8, "d": "A", "clue": "Vivitrol: monthly IM for OUD and alcohol use disorder", "n": 16}, {"w": "ALVIMOPAN", "r": 1, "c": 16, "d": "D", "clue": "Entereg: restores GI motility after bowel surgery", "n": 4}, {"w": "LOPERAMIDE", "r": 17, "c": 0, "d": "A", "clue": "Imodium: P-gp keeps it out of the brain", "n": 21}, {"w": "HISTAMINE", "r": 5, "c": 0, "d": "A", "clue": "Released by morphine: pruritus, hypotension", "n": 10}, {"w": "TOLERANCE", "r": 5, "c": 3, "d": "D", "clue": "Needing higher doses for the same effect", "n": 11}, {"w": "MEPERIDINE", "r": 1, "c": 18, "d": "D", "clue": "Demerol: metabolite normeperidine causes seizures", "n": 5}, {"w": "FENTANYL", "r": 10, "c": 0, "d": "D", "clue": "50–100× morphine potency; very lipophilic; patch", "n": 14}, {"w": "MORPHINE", "r": 13, "c": 8, "d": "A", "clue": "Standard strong opioid; metabolized to M3G and M6G", "n": 18}, {"w": "ATROPINE", "r": 0, "c": 14, "d": "D", "clue": "Added to diphenoxylate (Lomotil) to discourage abuse", "n": 3}, {"w": "CODEINE", "r": 10, "c": 15, "d": "D", "clue": "Prodrug turned into morphine by CYP2D6; antitussive", "n": 15}, {"w": "MIOSIS", "r": 4, "c": 1, "d": "D", "clue": "Pinpoint pupils; no tolerance develops", "n": 7}, {"w": "DELTA", "r": 16, "c": 14, "d": "A", "clue": "Receptor with antidepressant effects", "n": 20}, {"w": "KAPPA", "r": 12, "c": 18, "d": "D", "clue": "Receptor linked to dysphoria and diuresis", "n": 17}], "all": [["MORPHINE", "Standard strong opioid; metabolized to M3G and M6G"], ["FENTANYL", "50–100× morphine potency; very lipophilic; patch"], ["METHADONE", "Also blocks NMDA; long t1/2; used in opioid treatment programs for OUD"], ["BUPRENORPHINE", "Partial MOR agonist + KOR antagonist; hard to reverse with naloxone"], ["NALOXONE", "Narcan: works within minutes but lasts only 30–90 min"], ["NALTREXONE", "Vivitrol: monthly IM for OUD and alcohol use disorder"], ["NALMEFENE", "Opvee: antagonist lasting longer than naloxone"], ["LOPERAMIDE", "Imodium: P-gp keeps it out of the brain"], ["ATROPINE", "Added to diphenoxylate (Lomotil) to discourage abuse"], ["CODEINE", "Prodrug turned into morphine by CYP2D6; antitussive"], ["TRAMADOL", "Weak mu agonist + SERT/NET blocker; seizure risk, C-IV"], ["TAPENTADOL", "Nucynta: mu agonist + NET inhibitor, C-II"], ["MEPERIDINE", "Demerol: metabolite normeperidine causes seizures"], ["REMIFENTANIL", "Ultiva: esterase metabolism, ultra-short; anesthesia"], ["MIOSIS", "Pinpoint pupils; no tolerance develops"], ["CONSTIPATION", "GI effect with no tolerance; give laxatives"], ["TOLERANCE", "Needing higher doses for the same effect"], ["KAPPA", "Receptor linked to dysphoria and diuresis"], ["DELTA", "Receptor with antidepressant effects"], ["POTASSIUM", "Channels opened postsynaptically to hyperpolarize"], ["CALCIUM", "Voltage-gated channels closed presynaptically"], ["HISTAMINE", "Released by morphine: pruritus, hypotension"], ["NALBUPHINE", "KOR agonist/MOR antagonist with a respiratory ceiling"], ["PENTAZOCINE", "Oldest mixed agonist-antagonist"], ["OXYCODONE", "OxyContin: metabolized to oxymorphone; high abuse potential"], ["HYDROCODONE", "In Lortab/Norco; metabolized to hydromorphone"], ["SUZETRIGINE", "Journavx: NaV1.8 blocker, non-opioid"], ["NALOXEGOL", "Movantik: PAMORA for opioid constipation"], ["ALVIMOPAN", "Entereg: restores GI motility after bowel surgery"], ["THEBAINE", "Opium alkaloid used to make semisynthetic opioids"]]}, {"id": "gannon", "name": "Pain management", "rows": 18, "cols": 19, "grid": ["ADJUVANT.S.......L.", "D........E..M..F.O.", "D....B...N..E..U.C.", "I.QTPROLONGATION.K.", "C....E...A..H..CPOT", "TOLERANCE.L.Y..T.U.", "I....K....A.L..I.T.", "O....T....D.N..O...", "N.DIPHENHYDRAMINE..", ".....R....E.L..A...", "..P..O.N..R.T..L...", "..DOCUSATE.PRURITUS", "..M..G.L....E..T..E", "..P..H.OEND.X..Y..I", ".......X....O.R...Z", ".CROSSTOLERANCE...U", ".......N....E.M...R", "..NALOXEGOL...S...E"], "words": [{"w": "DIPHENHYDRAMINE", "r": 8, "c": 2, "d": "A", "clue": "Recommended for morphine's histamine itching", "n": 11}, {"w": "METHYLNALTREXONE", "r": 1, "c": 12, "d": "D", "clue": "Relistor", "n": 4}, {"w": "QTPROLONGATION", "r": 3, "c": 2, "d": "A", "clue": "Methadone's boxed warning", "n": 7}, {"w": "FUNCTIONALITY", "r": 1, "c": 15, "d": "D", "clue": "Treatment goal for chronic pain", "n": 5}, {"w": "CROSSTOLERANCE", "r": 15, "c": 1, "d": "A", "clue": "Incomplete ___ is why you reduce the dose when switching opioids", "n": 19}, {"w": "BREAKTHROUGH", "r": 2, "c": 5, "d": "D", "clue": "Spikes of pain despite a long-acting opioid; dose at 10–15%", "n": 6}, {"w": "TOLERANCE", "r": 5, "c": 0, "d": "A", "clue": "Higher dose needed for the same analgesia", "n": 9}, {"w": "ADDICTION", "r": 0, "c": 0, "d": "D", "clue": "Compulsion to take a drug despite harm", "n": 1}, {"w": "NALOXONE", "r": 10, "c": 7, "d": "D", "clue": "Narcan or RiVive; reverses OIRD", "n": 13}, {"w": "NALOXEGOL", "r": 17, "c": 2, "d": "A", "clue": "Movantik", "n": 20}, {"w": "PRURITUS", "r": 11, "c": 11, "d": "A", "clue": "Common histamine-mediated morphine AE", "n": 15}, {"w": "SEIZURE", "r": 11, "c": 18, "d": "D", "clue": "Risk shared by tramadol, tapentadol and meperidine", "n": 16}, {"w": "DOCUSATE", "r": 11, "c": 2, "d": "A", "clue": "Stool softener added to a stimulant laxative", "n": 14}, {"w": "ADJUVANT", "r": 0, "c": 0, "d": "A", "clue": "Added agent, most useful for neuropathic pain", "n": 1}, {"w": "LADDER", "r": 5, "c": 10, "d": "D", "clue": "The 1986 WHO analgesic ___", "n": 10}, {"w": "SENNA", "r": 0, "c": 9, "d": "D", "clue": "Stimulant laxative for opioid constipation", "n": 2}, {"w": "CPOT", "r": 4, "c": 15, "d": "A", "clue": "Critical Care Pain Observation Tool", "n": 8}, {"w": "REMS", "r": 14, "c": 14, "d": "D", "clue": "FDA risk program required for opioid analgesics", "n": 18}, {"w": "OEND", "r": 13, "c": 7, "d": "A", "clue": "Overdose education and naloxone distribution", "n": 17}, {"w": "PDMP", "r": 10, "c": 2, "d": "D", "clue": "Prescription drug monitoring program", "n": 12}, {"w": "LOCKOUT", "r": 0, "c": 17, "d": "D", "clue": "PCA safety interval between doses", "n": 3}], "all": [["SUBJECTIVE", "Pain is ___ : whatever the patient says it is"], ["FUNCTIONALITY", "Treatment goal for chronic pain"], ["NOCICEPTIVE", "Acute pain is typically this in nature"], ["SUBACUTE", "Pain lasting about 1–3 months"], ["MULTIMODAL", "Using several mechanisms to improve pain control"], ["ADJUVANT", "Added agent, most useful for neuropathic pain"], ["LADDER", "The 1986 WHO analgesic ___"], ["OLDCARTS", "Mnemonic for pain assessment questions"], ["CPOT", "Critical Care Pain Observation Tool"], ["TOLERANCE", "Higher dose needed for the same analgesia"], ["ADDICTION", "Compulsion to take a drug despite harm"], ["HYPERALGESIA", "Dose increase makes the pain worse"], ["BREAKTHROUGH", "Spikes of pain despite a long-acting opioid; dose at 10–15%"], ["NALOXONE", "Narcan or RiVive; reverses OIRD"], ["NALMEFENE", "Longest acting reversal agent; Rx only"], ["SENNA", "Stimulant laxative for opioid constipation"], ["DOCUSATE", "Stool softener added to a stimulant laxative"], ["PAMORA", "Used when laxatives fail; CI in GI obstruction"], ["NALOXEGOL", "Movantik"], ["METHYLNALTREXONE", "Relistor"], ["DIPHENHYDRAMINE", "Recommended for morphine's histamine itching"], ["REMS", "FDA risk program required for opioid analgesics"], ["PDMP", "Prescription drug monitoring program"], ["OEND", "Overdose education and naloxone distribution"], ["LOCKOUT", "PCA safety interval between doses"], ["CROSSTOLERANCE", "Incomplete ___ is why you reduce the dose when switching opioids"], ["JOURNAVX", "Brand of suzetrigine, the new non-opioid"], ["QTPROLONGATION", "Methadone's boxed warning"], ["SEIZURE", "Risk shared by tramadol, tapentadol and meperidine"], ["PRURITUS", "Common histamine-mediated morphine AE"]]}, {"id": "neuro", "name": "Neuropathic pain, fibromyalgia & RLS", "rows": 19, "cols": 19, "grid": [".........G.TRAMADOL", "...N..P..A......U.E", "...O..R..B..M...L.V", "...R.CAPSAICIN..O.O", ".B.T..M..P..L...X.D", "FERRITIN.E..N...E.O", ".E.I..P..N..A.R.T.P", ".R.P..E..T..C.O.I.A", ".S.T..X..I..I.P.N..", "A.CYCLOBENZAPRINE..", "L..L..L.....R.N....", "L.DIPHENHYDRAMINE..", "O..N........N.R.X..", "DYSESTHESIA...O.E..", "Y.............L.R..", "N....ROTIGOTINE.C..", "I...............I..", "A...............S..", "....AMITRIPTYLINE.."], "words": [{"w": "CYCLOBENZAPRINE", "r": 9, "c": 2, "d": "A", "clue": "Tricyclic derivative; SL form is FDA-approved", "n": 13}, {"w": "NORTRIPTYLINE", "r": 1, "c": 3, "d": "D", "clue": "Pamelor; preferred TCA for better AE profile", "n": 5}, {"w": "DIPHENHYDRAMINE", "r": 11, "c": 2, "d": "A", "clue": "Antihistamine that worsens RLS", "n": 14}, {"w": "MILNACIPRAN", "r": 2, "c": 12, "d": "D", "clue": "FDA-approved SNRI for fibromyalgia", "n": 7}, {"w": "DYSESTHESIA", "r": 13, "c": 0, "d": "A", "clue": "Burning, shooting, electrical sensation", "n": 16}, {"w": "PRAMIPEXOLE", "r": 1, "c": 6, "d": "D", "clue": "Non-ergot dopamine agonist, 0.125 mg start", "n": 6}, {"w": "GABAPENTIN", "r": 0, "c": 9, "d": "D", "clue": "Neurontin: FDA-approved for postherpetic neuralgia; max 3600 mg/day", "n": 1}, {"w": "DULOXETINE", "r": 0, "c": 16, "d": "D", "clue": "Cymbalta: SNRI approved for diabetic nerve pain and fibromyalgia", "n": 3}, {"w": "ALLODYNIA", "r": 9, "c": 0, "d": "D", "clue": "Pain from bedsheets or a gentle breeze", "n": 12}, {"w": "EXERCISE", "r": 11, "c": 16, "d": "D", "clue": "Comes right after education in fibromyalgia treatment", "n": 15}, {"w": "ROPINIROLE", "r": 6, "c": 14, "d": "D", "clue": "Non-ergot dopamine agonist, 0.25 mg start", "n": 11}, {"w": "CAPSAICIN", "r": 3, "c": 5, "d": "A", "clue": "TRPV1 agonist patch, repeat no more than every 3 months", "n": 8}, {"w": "TRAMADOL", "r": 0, "c": 11, "d": "A", "clue": "Moved from 2nd to 3rd line in the 2025 NeuPSIG update", "n": 2}, {"w": "FERRITIN", "r": 5, "c": 0, "d": "A", "clue": "Check this level before starting RLS therapy", "n": 10}, {"w": "LEVODOPA", "r": 0, "c": 18, "d": "D", "clue": "Carbidopa/___ for predictable immobility like flights", "n": 4}, {"w": "BEERS", "r": 4, "c": 1, "d": "D", "clue": "Criteria saying older adults should avoid TCAs like amitriptyline", "n": 9}, {"w": "AMITRIPTYLINE", "r": 18, "c": 4, "d": "A", "clue": "TCA, 10-25 mg at bedtime, off-label", "n": 18}, {"w": "ROTIGOTINE", "r": 15, "c": 5, "d": "A", "clue": "Dopamine agonist delivered by patch", "n": 17}], "all": [["NEUROPATHIC", "Pain from damage to the somatosensory nervous system"], ["ALLODYNIA", "Pain from bedsheets or a gentle breeze"], ["HYPERALGESIA", "Abnormally heightened pain response to a pinprick"], ["PARESTHESIA", "Tingling, pins and needles"], ["DYSESTHESIA", "Burning, shooting, electrical sensation"], ["GABAPENTIN", "Neurontin: FDA-approved for postherpetic neuralgia; max 3600 mg/day"], ["PREGABALIN", "Lyrica; FDA-approved, 75 mg BID start"], ["DULOXETINE", "Cymbalta: SNRI approved for diabetic nerve pain and fibromyalgia"], ["VENLAFAXINE", "Effexor XR: SNRI used off-label for neuropathic pain"], ["NORTRIPTYLINE", "Pamelor; preferred TCA for better AE profile"], ["AMITRIPTYLINE", "TCA, 10-25 mg at bedtime, off-label"], ["LIDOCAINE", "5% patch, 12 hours on and 12 off"], ["CAPSAICIN", "TRPV1 agonist patch, repeat no more than every 3 months"], ["BOTULINUM", "Toxin A injection used by specialists for peripheral neuropathic pain"], ["TRAMADOL", "Moved from 2nd to 3rd line in the 2025 NeuPSIG update"], ["BEERS", "Criteria saying older adults should avoid TCAs like amitriptyline"], ["FIBROMYALGIA", "Chronic pain-processing disorder, pain all over"], ["MILNACIPRAN", "FDA-approved SNRI for fibromyalgia"], ["CYCLOBENZAPRINE", "Tricyclic derivative; SL form is FDA-approved"], ["EXERCISE", "Comes right after education in fibromyalgia treatment"], ["FERRITIN", "Check this level before starting RLS therapy"], ["TRANSFERRIN", "___ saturation under 20% means give iron"], ["AUGMENTATION", "Iatrogenic worsening of RLS from dopamine agonists"], ["PRAMIPEXOLE", "Non-ergot dopamine agonist, 0.125 mg start"], ["ROPINIROLE", "Non-ergot dopamine agonist, 0.25 mg start"], ["ROTIGOTINE", "Dopamine agonist delivered by patch"], ["ENACARBIL", "Gabapentin ___ is the FDA-approved RLS prodrug"], ["LEVODOPA", "Carbidopa/___ for predictable immobility like flights"], ["DIPHENHYDRAMINE", "Antihistamine that worsens RLS"], ["SEROTONIN", "___ syndrome risk with SNRIs plus tramadol"]]}, {"id": "adjuvant", "name": "Adjuvants & muscle relaxants", "rows": 19, "cols": 19, "grid": ["BACLOFEN.TIZANIDINE", "E.......C......E...", "E.ANTISPASMODICS..D", "R.......R......I..I", "SPASM.H.B.C....P..A", "....E.E.A.H..N.R..Z", "..G.T.P.M.LIDOCAINE", "M.L.H.A.A.O..R.M..P", "I.Y.O.T.Z.R..T.I..A", "L.CYCLOBENZAPRINE.M", "N.I.A.T.P.O..I.E...", "A.N.R.O.I.X..P.....", "C.E.B.X.N.A..T...C.", "I...A.I.E.Z..Y...A.", "P...M.C..BOTULINUM.", "RYANODINE.N..I...P.", "A...L.T...E..N...H.", "N.....Y.....MENTHOL", ".................R."], "words": [{"w": "CYCLOBENZAPRINE", "r": 9, "c": 2, "d": "A", "clue": "Fexmid; structurally like a TCA, serotonergic toxicity", "n": 15}, {"w": "CARBAMAZEPINE", "r": 1, "c": 8, "d": "D", "clue": "Drug of choice for trigeminal neuralgia; induces CYP3A4", "n": 4}, {"w": "ANTISPASMODICS", "r": 2, "c": 2, "d": "A", "clue": "Group treating peripheral musculoskeletal spasms", "n": 5}, {"w": "HEPATOTOXICITY", "r": 4, "c": 6, "d": "D", "clue": "Boxed warning shared by dantrolene", "n": 9}, {"w": "CHLORZOXAZONE", "r": 4, "c": 10, "d": "D", "clue": "Blocks multisynaptic reflex arcs in the spinal cord", "n": 10}, {"w": "NORTRIPTYLINE", "r": 5, "c": 13, "d": "D", "clue": "TCA with fewer anticholinergic effects than amitriptyline", "n": 11}, {"w": "METHOCARBAMOL", "r": 4, "c": 4, "d": "D", "clue": "Robaxin; causes brown, green or black urine", "n": 8}, {"w": "DESIPRAMINE", "r": 0, "c": 15, "d": "D", "clue": "TCA with less sedation and anticholinergic burden", "n": 3}, {"w": "RYANODINE", "r": 15, "c": 0, "d": "A", "clue": "The receptor dantrolene blocks in the sarcoplasmic reticulum", "n": 18}, {"w": "MILNACIPRAN", "r": 7, "c": 0, "d": "D", "clue": "SNRI approved for fibromyalgia", "n": 14}, {"w": "BOTULINUM", "r": 14, "c": 9, "d": "A", "clue": "Toxin cleaving SNAPs and VAMPs to stop ACh release", "n": 17}, {"w": "TIZANIDINE", "r": 0, "c": 9, "d": "A", "clue": "Zanaflex; alpha-2 agonist, CYP1A2, hepatotoxicity", "n": 2}, {"w": "LIDOCAINE", "r": 6, "c": 10, "d": "A", "clue": "Use-dependent blockade of voltage-gated sodium channels", "n": 13}, {"w": "DIAZEPAM", "r": 2, "c": 18, "d": "D", "clue": "Valium; GABA-A positive allosteric modulator", "n": 6}, {"w": "MENTHOL", "r": 17, "c": 12, "d": "A", "clue": "Topical counterirritant alongside camphor", "n": 19}, {"w": "CAMPHOR", "r": 12, "c": 17, "d": "D", "clue": "Topical analgesic found with menthol in rubs", "n": 16}, {"w": "GLYCINE", "r": 6, "c": 2, "d": "D", "clue": "Neurotransmitter potentiated by tizanidine", "n": 12}, {"w": "SPASM", "r": 4, "c": 0, "d": "A", "clue": "Involuntary contraction causing jerks, twitches and cramps", "n": 7}, {"w": "BEERS", "r": 0, "c": 0, "d": "D", "clue": "Criteria flagging most muscle relaxants as poorly tolerated in older adults", "n": 1}, {"w": "BACLOFEN", "r": 0, "c": 0, "d": "A", "clue": "GABA-B agonist; first-line for severe spasticity", "n": 1}], "all": [["GABAPENTIN", "Neurontin; alpha-2-delta calcium channel modulator"], ["PREGABALIN", "Lyrica; first-line gabapentinoid for neuropathic pain"], ["CARBAMAZEPINE", "Drug of choice for trigeminal neuralgia; induces CYP3A4"], ["OXCARBAZEPINE", "Carbamazepine analogue with improved tolerability and DDIs"], ["TOPIRAMATE", "Blocks VGSC and AMPA/kainate; migraine prophylaxis"], ["NORTRIPTYLINE", "TCA with fewer anticholinergic effects than amitriptyline"], ["DULOXETINE", "SNRI used for fibromyalgia and neuropathic pain"], ["MILNACIPRAN", "SNRI approved for fibromyalgia"], ["DESIPRAMINE", "TCA with less sedation and anticholinergic burden"], ["LIDOCAINE", "Use-dependent blockade of voltage-gated sodium channels"], ["CAPSAICIN", "TRPV1 agonist that depletes substance P from C-fibers"], ["MENTHOL", "Topical counterirritant alongside camphor"], ["CAMPHOR", "Topical analgesic found with menthol in rubs"], ["SPASM", "Involuntary contraction causing jerks, twitches and cramps"], ["SPASTICITY", "Upper motor neuron problem causing stiffness and hyperreflexia"], ["ANTISPASMODICS", "Group treating peripheral musculoskeletal spasms"], ["SPASMOLYTICS", "Antispasticity agents for upper motor neuron disorders"], ["CYCLOBENZAPRINE", "Fexmid; structurally like a TCA, serotonergic toxicity"], ["CARISOPRODOL", "Soma; Schedule IV, metabolized to meprobamate"], ["MEPROBAMATE", "Barbiturate-like metabolite of carisoprodol"], ["METHOCARBAMOL", "Robaxin; causes brown, green or black urine"], ["METAXALONE", "Skelaxin: avoid with significant liver or kidney disease"], ["ORPHENADRINE", "Diphenhydramine derivative; long half-life, anticholinergic"], ["CHLORZOXAZONE", "Blocks multisynaptic reflex arcs in the spinal cord"], ["BEERS", "Criteria flagging most muscle relaxants as poorly tolerated in older adults"], ["BACLOFEN", "GABA-B agonist; first-line for severe spasticity"], ["DIAZEPAM", "Valium; GABA-A positive allosteric modulator"], ["TIZANIDINE", "Zanaflex; alpha-2 agonist, CYP1A2, hepatotoxicity"], ["DANTROLENE", "Blocks RyR1 in the SR; IV for malignant hyperthermia"], ["RYANODINE", "The receptor dantrolene blocks in the sarcoplasmic reticulum"], ["BOTULINUM", "Toxin cleaving SNAPs and VAMPs to stop ACh release"], ["GLYCINE", "Neurotransmitter potentiated by tizanidine"], ["INTRATHECAL", "Baclofen route besides oral"], ["HEPATOTOXICITY", "Boxed warning shared by dantrolene"], ["MALIGNANT", "___ hyperthermia: the IV dantrolene indication"]]}, {"id": "medchem", "name": "NSAID chemistry", "rows": 18, "cols": 19, "grid": ["....SULFOXIDE...A..", "....A......I..A.R..", "T.CHLORINE.F..C.G.F", "H...I......L.SERINE", "I...C.P....U..T.N.N", "A...Y.H..S.N..Y.I.A", "Z...L.O..U.I..L.N.C", "OXICAMS..L.S..A.E..", "L...T.P..F.A..T...P", "E..METHEMOGLOBIN..R", ".F..S.O..N....O...O", ".L.P.GLUTATHIONE..P", ".U.Y..I..M...X....A", ".O.R..P..I..SALICIN", ".R.R..A..D...Z....O", ".I.O..S.CELECOXIB.I", "ANILIDES.....L....C", ".E.E....INDOLE....."], "words": [{"w": "METHEMOGLOBIN", "r": 9, "c": 3, "d": "A", "clue": "Aniline/acetanilide toxicity forms this", "n": 13}, {"w": "PHOSPHOLIPASE", "r": 4, "c": 6, "d": "D", "clue": "Enzyme releasing arachidonic acid; steroid target", "n": 9}, {"w": "ACETYLATION", "r": 1, "c": 14, "d": "D", "clue": "How aspirin irreversibly inhibits COX", "n": 4}, {"w": "GLUTATHIONE", "r": 11, "c": 5, "d": "A", "clue": "Binds acetaminophen's toxic intermediate in the liver", "n": 16}, {"w": "DIFLUNISAL", "r": 0, "c": 11, "d": "D", "clue": "Difluoro salicylate; poor CNS entry, not antipyretic", "n": 2}, {"w": "SULFONAMIDE", "r": 5, "c": 9, "d": "D", "clue": "Celecoxib group giving COX-2 selectivity and hypersensitivity", "n": 10}, {"w": "SALICYLATES", "r": 0, "c": 4, "d": "D", "clue": "Class including aspirin and diflunisal", "n": 1}, {"w": "CELECOXIB", "r": 15, "c": 8, "d": "A", "clue": "Only selective COX-2 inhibitor still on the US market", "n": 19}, {"w": "CHLORINE", "r": 2, "c": 2, "d": "A", "clue": "Slows indomethacin metabolism, longer t1/2", "n": 6}, {"w": "SULFOXIDE", "r": 0, "c": 4, "d": "A", "clue": "Sulindac group reversibly metabolized (longer t1/2)", "n": 1}, {"w": "ANILIDES", "r": 16, "c": 0, "d": "A", "clue": "Structural class of acetaminophen (not an NSAID)", "n": 20}, {"w": "OXAZOLE", "r": 11, "c": 13, "d": "D", "clue": "Aryl ring of oxaprozin", "n": 17}, {"w": "PYRROLE", "r": 11, "c": 3, "d": "D", "clue": "Aryl ring of tolmetin", "n": 15}, {"w": "OXICAMS", "r": 7, "c": 0, "d": "A", "clue": "Class with piroxicam and meloxicam; no carboxylic acid", "n": 11}, {"w": "THIAZOLE", "r": 2, "c": 0, "d": "D", "clue": "Ring in meloxicam that replaces pyridine", "n": 5}, {"w": "SALICIN", "r": 13, "c": 12, "d": "A", "clue": "Active compound in willow bark", "n": 18}, {"w": "PROPANOIC", "r": 8, "c": 18, "d": "D", "clue": "Aryl ___ acids are the 'profen' drugs", "n": 12}, {"w": "INDOLE", "r": 17, "c": 8, "d": "A", "clue": "Aromatic ring of indomethacin and etodolac", "n": 21}, {"w": "FLUORINE", "r": 10, "c": 1, "d": "D", "clue": "Raises acidity and potency of flurbiprofen", "n": 14}, {"w": "SERINE", "r": 3, "c": 13, "d": "A", "clue": "Amino acid (Ser530 in COX-1) that aspirin acetylates", "n": 8}, {"w": "FENAC", "r": 2, "c": 18, "d": "D", "clue": "Name ending shared by diclofenac and bromfenac", "n": 7}, {"w": "ARGININE", "r": 0, "c": 16, "d": "D", "clue": "Residue 120 that binds the NSAID carboxylate", "n": 3}], "all": [["ANILIDES", "Structural class of acetaminophen (not an NSAID)"], ["SALICYLATES", "Class including aspirin and diflunisal"], ["PROPANOIC", "Aryl ___ acids are the 'profen' drugs"], ["OXICAMS", "Class with piroxicam and meloxicam; no carboxylic acid"], ["FENAC", "Name ending shared by diclofenac and bromfenac"], ["METHYLENE", "Optimal acid-to-ring spacing: one ___ unit"], ["SALICIN", "Active compound in willow bark"], ["METHEMOGLOBIN", "Aniline/acetanilide toxicity forms this"], ["GLUTATHIONE", "Binds acetaminophen's toxic intermediate in the liver"], ["SULFOXIDE", "Sulindac group reversibly metabolized (longer t1/2)"], ["INDOLE", "Aromatic ring of indomethacin and etodolac"], ["NAPHTHALENE", "Aryl group of naproxen"], ["OXAZOLE", "Aryl ring of oxaprozin"], ["PYRROLE", "Aryl ring of tolmetin"], ["THIAZOLE", "Ring in meloxicam that replaces pyridine"], ["FLUORINE", "Raises acidity and potency of flurbiprofen"], ["CHLORINE", "Slows indomethacin metabolism, longer t1/2"], ["SERINE", "Amino acid (Ser530 in COX-1) that aspirin acetylates"], ["ARGININE", "Residue 120 that binds the NSAID carboxylate"], ["ROFECOXIB", "Vioxx: withdrawn in 2004"], ["DIFLUNISAL", "Difluoro salicylate; poor CNS entry, not antipyretic"], ["TOLMETIN", "Pyrrole acetic acid; t1/2 1 h; parent of ketorolac"], ["ACETYLATION", "How aspirin irreversibly inhibits COX"], ["PHOSPHOLIPASE", "Enzyme releasing arachidonic acid; steroid target"], ["STEREOGENIC", "The profens' alpha-methyl carbon is this kind of center"], ["SULFONAMIDE", "Celecoxib group giving COX-2 selectivity and hypersensitivity"], ["CELECOXIB", "Only selective COX-2 inhibitor still on the US market"], ["NABUMETONE", "Non-acidic prodrug that loses two carbons"]]}, {"id": "medopi", "name": "Opioid chemistry", "rows": 19, "cols": 18, "grid": [".LOPERAMIDE....P..", ".......E.......E..", ".ALVIMOPAN.B...N.O", ".......E...E...T.L", "...LEVORPHANOL.A.I", ".D.....I...Z...Z.C", ".I.F.HYDROMORPHONE", ".P.E.E.I...M...C.R", ".H.N.R.N...O...I.I", "DEXTROMETHORPHAN.D", ".N.A.I.....P...E.I", ".O.N.NALBUPHINE..N", ".X.Y.......A.....E", ".Y.L.REMIFENTANIL.", ".L.........S.L....", "NALMEFENE....K....", ".T........CODEINE.", "METHADONE....N....", "...........PHENOL."], "words": [{"w": "DEXTROMETHORPHAN", "r": 9, "c": 0, "d": "A", "clue": "(+)-dextro mirror image; antitussive, no analgesia", "n": 11}, {"w": "BENZOMORPHANS", "r": 2, "c": 11, "d": "D", "clue": "Class of pentazocine", "n": 5}, {"w": "REMIFENTANIL", "r": 13, "c": 5, "d": "A", "clue": "Ultiva; inactivated by hydrolysis", "n": 13}, {"w": "PENTAZOCINE", "r": 0, "c": 15, "d": "D", "clue": "Talwin benzomorphan; all metabolites inactive", "n": 3}, {"w": "DIPHENOXYLATE", "r": 5, "c": 1, "d": "D", "clue": "Lomotil; 4-phenylpiperidine antidiarrheal", "n": 8}, {"w": "LEVORPHANOL", "r": 4, "c": 3, "d": "A", "clue": "(-)-levo morphinan; mu agonist, more potent than morphine", "n": 7}, {"w": "HYDROMORPHONE", "r": 6, "c": 5, "d": "A", "clue": "Dilaudid; C6 ketone + C7-C8 reduced; 1.5 mg = 10 mg IV morphine", "n": 10}, {"w": "OLICERIDINE", "r": 2, "c": 17, "d": "D", "clue": "Olinvyk 2020; designed to reduce respiratory depression", "n": 6}, {"w": "NALBUPHINE", "r": 11, "c": 5, "d": "A", "clue": "Nubain; N17 cyclobutyl; strong KOR agonist, MOR antagonist", "n": 12}, {"w": "MEPERIDINE", "r": 0, "c": 7, "d": "D", "clue": "Demerol; 4-phenylpiperidine; CYP3A4 N-demethylation", "n": 2}, {"w": "NALMEFENE", "r": 15, "c": 0, "d": "A", "clue": "Naltrexone analogue with C6 alkene; 8–10 h", "n": 15}, {"w": "LOPERAMIDE", "r": 0, "c": 1, "d": "A", "clue": "Imodium; P-gp substrate kept out of the brain", "n": 1}, {"w": "METHADONE", "r": 17, "c": 0, "d": "A", "clue": "3-phenylpropyl amine; induces its own CYP450 metabolism", "n": 17}, {"w": "ALVIMOPAN", "r": 2, "c": 1, "d": "A", "clue": "Entereg; peripheral antagonist for post-op ileus", "n": 4}, {"w": "FENTANYL", "r": 6, "c": 3, "d": "D", "clue": "Sublimaze; 0.1 mg = 10 mg IV morphine", "n": 9}, {"w": "HEROIN", "r": 6, "c": 5, "d": "D", "clue": "Diacetylated morphine; 6-acetyl > it > morphine", "n": 10}, {"w": "ALKENE", "r": 13, "c": 13, "d": "D", "clue": "C7-C8 group whose reduction increases activity", "n": 14}, {"w": "CODEINE", "r": 16, "c": 10, "d": "A", "clue": "C3-methyl morphine; much less potent; antitussive", "n": 16}, {"w": "PHENOL", "r": 18, "c": 11, "d": "A", "clue": "Functional group at C3 of morphine", "n": 18}], "all": [["MORPHINE", "Standard opioid; 5 stereocenters, pKa 9.9 phenol"], ["CODEINE", "C3-methyl morphine; much less potent; antitussive"], ["THEBAINE", "Opium alkaloid used for semisynthetic opioids"], ["PIPERIDINE", "Ring containing N17 in morphine"], ["PHENOL", "Functional group at C3 of morphine"], ["ALKENE", "C7-C8 group whose reduction increases activity"], ["HEROIN", "Diacetylated morphine; 6-acetyl > it > morphine"], ["HYDROMORPHONE", "Dilaudid; C6 ketone + C7-C8 reduced; 1.5 mg = 10 mg IV morphine"], ["OXYMORPHONE", "C14 alcohol raises potency; 1 mg = 10 mg IV morphine"], ["HYDROCODONE", "Vicodin; codeine analogue; 30 mg = 30 mg oral morphine"], ["OXYCODONE", "OxyContin; hydrocodone analogue with C14 alcohol"], ["MORPHINANS", "Class containing levorphanol and butorphanol"], ["BENZOMORPHANS", "Class of pentazocine"], ["LEVORPHANOL", "(-)-levo morphinan; mu agonist, more potent than morphine"], ["DEXTROMETHORPHAN", "(+)-dextro mirror image; antitussive, no analgesia"], ["NALOXONE", "Oxymorphone analogue with N17 allyl; inactive orally"], ["NALTREXONE", "N17 cyclopropyl; orally active, 48 h duration"], ["NALMEFENE", "Naltrexone analogue with C6 alkene; 8–10 h"], ["NALBUPHINE", "Nubain; N17 cyclobutyl; strong KOR agonist, MOR antagonist"], ["BUTORPHANOL", "Stadol morphinan; KOR agonist, more potent than nalbuphine"], ["PENTAZOCINE", "Talwin benzomorphan; all metabolites inactive"], ["MEPERIDINE", "Demerol; 4-phenylpiperidine; CYP3A4 N-demethylation"], ["DIPHENOXYLATE", "Lomotil; 4-phenylpiperidine antidiarrheal"], ["LOPERAMIDE", "Imodium; P-gp substrate kept out of the brain"], ["ALVIMOPAN", "Entereg; peripheral antagonist for post-op ileus"], ["FENTANYL", "Sublimaze; 0.1 mg = 10 mg IV morphine"], ["SUFENTANIL", "Sufenta; more potent than fentanyl"], ["REMIFENTANIL", "Ultiva; inactivated by hydrolysis"], ["METHADONE", "3-phenylpropyl amine; induces its own CYP450 metabolism"], ["TRAMADOL", "Ultram; (+) weak MOR agonist, (-) blocks NE reuptake"], ["TAPENTADOL", "Nucynta; designed from the tramadol metabolite"], ["OLICERIDINE", "Olinvyk 2020; designed to reduce respiratory depression"], ["SERTURNER", "Pharmacist who isolated morphine in 1805"]]}];
+const store={get(k,d){try{const v=localStorage.getItem('pp-'+k);return v===null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem('pp-'+k,JSON.stringify(v))}catch(e){}}};
+const $=s=>document.querySelector(s);
+let topic=store.get('topic','pain'); if(!TOPICS.find(t=>t.id===topic))topic='pain';
+let mode=store.get('mode','ws'); if(!['ws','cw','tg'].includes(mode))mode='ws';
+const T=()=>TOPICS.find(t=>t.id===topic);
+const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+
+$('#topics').innerHTML=TOPICS.map(t=>`<button class="chip" data-t="${t.id}" aria-pressed="${t.id===topic}">${t.name.replace(/&/g,'&amp;')}</button>`).join('');
+$('#topics').onclick=e=>{const b=e.target.closest('[data-t]');if(!b)return;topic=b.dataset.t;store.set('topic',topic);document.querySelectorAll('#topics .chip').forEach(c=>c.setAttribute('aria-pressed',c.dataset.t===topic));refresh()};
+document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{mode=b.dataset.m;store.set('mode',mode);showMode()});
+function showMode(){document.querySelectorAll('.tab').forEach(b=>b.setAttribute('aria-selected',b.dataset.m===mode));['ws','cw','tg'].forEach(m=>$('#m-'+m).hidden=m!==mode);if(mode==='cw')CW.focus()}
+function refresh(){WS.build();CW.build();TG.next()}
+
+/* ---------------- Word search ---------------- */
+const FC=['#bfe3dc','#f6d9a8','#f3c4b8','#d6d0f1','#c9e6b8','#f1c9de','#bcdcf3','#ead7b0','#cfe9e0','#f4d2a0'];
+const WS=(()=>{
+  const N=13,DIRS=[[0,1],[1,0],[1,1],[-1,1],[0,-1],[-1,0],[-1,-1],[1,-1]];
+  let grid,words,found,anchor=null,drag=null,cs=32;
+  const el=$('#ws-grid');
+  function size(){const w=Math.min(window.innerWidth-64,540);cs=Math.max(22,Math.min(38,Math.floor((w-(N-1)*2)/N)));el.style.setProperty('--cs',cs+'px');el.style.gridTemplateColumns=`repeat(${N},${cs}px)`}
+  function build(){
+    const pool=[];const seen=new Set();
+    T().all.forEach(([w,c])=>{if(w.length<=N&&w.length>=4&&!seen.has(w)){seen.add(w);pool.push({w,c})}});
+    shuffle(pool);
+    for(let tries=0;tries<40;tries++){
+      grid=Array.from({length:N},()=>Array(N).fill(''));words=[];
+      const pick=pool.slice(0,10).sort((a,b)=>b.w.length-a.w.length);
+      let ok=true;
+      for(const p of pick){
+        let placed=false;
+        for(let k=0;k<300&&!placed;k++){
+          const [dr,dc]=DIRS[Math.floor(Math.random()*(k<150?4:8))],L=p.w.length;
+          const r0=Math.floor(Math.random()*N),c0=Math.floor(Math.random()*N),r1=r0+dr*(L-1),c1=c0+dc*(L-1);
+          if(r1<0||r1>=N||c1<0||c1>=N)continue;
+          let fits=true;for(let i=0;i<L;i++){const ch=grid[r0+dr*i][c0+dc*i];if(ch&&ch!==p.w[i]){fits=false;break}}
+          if(!fits)continue;
+          for(let i=0;i<L;i++)grid[r0+dr*i][c0+dc*i]=p.w[i];
+          words.push({...p,cells:[...Array(L)].map((_,i)=>[r0+dr*i,c0+dc*i])});placed=true;
+        }
+        if(!placed){ok=false;break}
+      }
+      if(ok)break; shuffle(pool);
+    }
+    const AZ='ABCDEFGHIJKLMNOPRSTUVWY';
+    for(let r=0;r<N;r++)for(let c=0;c<N;c++)if(!grid[r][c])grid[r][c]=AZ[Math.floor(Math.random()*AZ.length)];
+    words.sort((a,b)=>a.w.localeCompare(b.w));
+    words.forEach((w,i)=>w.col=FC[i%FC.length]);
+    found=new Set();anchor=null;
+    size();
+    el.innerHTML=grid.map((row,r)=>row.map((ch,c)=>`<div class="c" data-r="${r}" data-c="${c}">${ch}</div>`).join('')).join('');
+    $('#ws-status').textContent='';$('#ws-status').className='status';
+    paint();
+  }
+  function cellAt(x,y){const t=document.elementFromPoint(x,y);return t&&t.closest?t.closest('.ws .c'):null}
+  function line(a,b){if(!a||!b)return null;const dr=b[0]-a[0],dc=b[1]-a[1];if(!(dr===0||dc===0||Math.abs(dr)===Math.abs(dc)))return null;const L=Math.max(Math.abs(dr),Math.abs(dc))+1,sr=Math.sign(dr),sc=Math.sign(dc);return [...Array(L)].map((_,i)=>[a[0]+sr*i,a[1]+sc*i])}
+  function paint(sel){
+    const selSet=new Set((sel||[]).map(x=>x.join(',')));
+    const colOf={};words.forEach((w,i)=>{if(found.has(i))w.cells.forEach(x=>colOf[x.join(',')]=w.col)});
+    el.querySelectorAll('.c').forEach(d=>{const k=d.dataset.r+','+d.dataset.c;d.classList.toggle('sel',selSet.has(k));d.classList.toggle('anchor',!!anchor&&anchor.join(',')===k&&!sel);d.classList.toggle('found',!!colOf[k]);d.style.setProperty('--fc',colOf[k]||'transparent')});
+    const show=$('#ws-show').checked;
+    $('#ws-clues').innerHTML=words.map((w,i)=>`<li class="${found.has(i)?'done':''}" style="--fc:${w.col}"><span class="ans">${found.has(i)||show?w.w:'_ '.repeat(0)+w.w.length+' letters'}</span><span class="cl">${w.c}</span></li>`).join('');
+    $('#ws-count').textContent=`${found.size} / ${words.length} found`;
+    if(found.size===words.length&&words.length){$('#ws-status').textContent='Puzzle complete. Try a new one or switch topics.';$('#ws-status').className='status win'}
+  }
+  function tryLine(cells){
+    if(!cells||cells.length<2)return false;
+    const s=cells.map(([r,c])=>grid[r][c]).join(''),rs=[...s].reverse().join('');
+    const key=cells.map(x=>x.join(',')).join('|'),rkey=[...cells].reverse().map(x=>x.join(',')).join('|');
+    const i=words.findIndex((w,j)=>!found.has(j)&&(w.w===s||w.w===rs)&&[key,rkey].includes(w.cells.map(x=>x.join(',')).join('|')));
+    if(i<0)return false; found.add(i); return true;
+  }
+  const rc=d=>[+d.dataset.r,+d.dataset.c];
+  el.addEventListener('pointerdown',e=>{const d=e.target.closest('.c');if(!d)return;e.preventDefault();drag={start:rc(d),moved:false,cur:rc(d)};el.setPointerCapture&&el.setPointerCapture(e.pointerId)});
+  el.addEventListener('pointermove',e=>{if(!drag)return;const d=cellAt(e.clientX,e.clientY);if(!d)return;const p=rc(d);if(p.join()!==drag.start.join())drag.moved=true;drag.cur=p;paint(line(drag.start,p)||[drag.start])});
+  el.addEventListener('pointerup',e=>{if(!drag)return;const d=drag;drag=null;
+    if(d.moved){anchor=null;tryLine(line(d.start,d.cur));paint();return}
+    if(anchor&&anchor.join()!==d.start.join()){const l=line(anchor,d.start);anchor=null;tryLine(l);paint();return}
+    anchor=anchor&&anchor.join()===d.start.join()?null:d.start;paint()});
+  el.addEventListener('pointercancel',()=>{drag=null;paint()});
+  $('#ws-new').onclick=build;
+  $('#ws-reveal').onclick=()=>{words.forEach((w,i)=>found.add(i));paint()};
+  $('#ws-show').onchange=()=>{store.set('wsshow',$('#ws-show').checked);paint()};
+  $('#ws-show').checked=store.get('wsshow',false);
+  window.addEventListener('resize',()=>{size()});
+  return {build};
+})();
+
+/* ---------------- Crossword ---------------- */
+const CW=(()=>{
+  let P,fill,rev,sel=null,dir='A',cellWords,live=store.get('cwlive',true),saveK;
+  const grid=$('#cw-grid'),inp=$('#cw-in');
+  $('#cw-live').checked=live;
+  const cells=i=>{const w=P.words[i];return [...w.w].map((_,j)=>(w.r+(w.d==='D'?j:0))+','+(w.c+(w.d==='A'?j:0)))};
+  const sol=k=>{const[r,c]=k.split(',').map(Number);return P.grid[r][c]};
+  const ord=d=>P.words.map((w,i)=>[w,i]).filter(([w])=>w.d===d).sort((a,b)=>a[0].n-b[0].n);
+  function curWord(){if(!sel)return null;const cw=cellWords[sel];return cw[dir]!==undefined?cw[dir]:cw[dir==='A'?'D':'A']}
+  function build(){
+    P=T();saveK='cw-'+P.id;fill=store.get(saveK,{});rev=new Set(store.get(saveK+'-rev',[]));sel=null;dir='A';
+    cellWords={};P.words.forEach((w,i)=>{for(let j=0;j<w.w.length;j++){const k=(w.r+(w.d==='D'?j:0))+','+(w.c+(w.d==='A'?j:0));(cellWords[k]=cellWords[k]||{})[w.d]=i}});
+    const num={};P.words.forEach(w=>num[w.r+','+w.c]=w.n);
+    const avail=Math.min(window.innerWidth-64,620),cs=Math.max(20,Math.min(34,Math.floor(avail/P.cols)));
+    grid.style.setProperty('--cs',cs+'px');grid.style.gridTemplateColumns=`repeat(${P.cols},${cs}px)`;
+    grid.innerHTML=P.grid.map((line,r)=>[...line].map((ch,c)=>ch==='.'?'<div class="cell"></div>':`<div class="cell on" data-rc="${r},${c}">${num[r+','+c]?`<span class="n">${num[r+','+c]}</span>`:''}<span class="ch"></span></div>`).join('')).join('');
+    $('#cw-ac').innerHTML=ord('A').map(([w,i])=>`<li data-w="${i}"><b>${w.n}</b><span>${w.clue} (${w.w.length})</span></li>`).join('');
+    $('#cw-dn').innerHTML=ord('D').map(([w,i])=>`<li data-w="${i}"><b>${w.n}</b><span>${w.clue} (${w.w.length})</span></li>`).join('');
+    selWord(ord('A')[0][1],false);
+  }
+  function paint(checkAll){
+    const wi=curWord(),wc=wi!=null?new Set(cells(wi)):new Set();
+    grid.querySelectorAll('.cell.on').forEach(el=>{const k=el.dataset.rc,v=fill[k]||'';el.querySelector('.ch').textContent=v;
+      el.classList.toggle('cur',k===sel);el.classList.toggle('word',wc.has(k)&&k!==sel);
+      const show=(live||checkAll)&&v;el.classList.toggle('right',!!show&&v===sol(k)&&!rev.has(k));el.classList.toggle('wrong',!!show&&v!==sol(k));el.classList.toggle('rev',rev.has(k))});
+    document.querySelectorAll('#cw-ac li,#cw-dn li').forEach(li=>{const i=+li.dataset.w;li.classList.toggle('cur',i===wi);li.classList.toggle('done',cells(i).every(k=>fill[k]===sol(k)))});
+    if(wi!=null){const w=P.words[wi];$('#cw-cur').textContent=`${w.n} ${w.d==='A'?'Across':'Down'}: ${w.clue} (${w.w.length})`}
+    const all=[...grid.querySelectorAll('.cell.on')],ok=all.filter(el=>fill[el.dataset.rc]===sol(el.dataset.rc)).length;
+    $('#cw-prog').textContent=ok===all.length?'Solved!':`${ok} / ${all.length} letters correct`;
+    store.set(saveK,fill);store.set(saveK+'-rev',[...rev]);
+  }
+  function selWord(i,focus=true){const w=P.words[i];dir=w.d;const cs=cells(i);sel=cs.find(k=>!fill[k])||cs[0];paint();if(focus)inp.focus({preventScroll:true})}
+  function move(step){const wi=curWord();if(wi==null)return;const cs=cells(wi),k=cs.indexOf(sel)+step;if(k>=0&&k<cs.length)sel=cs[k]}
+  grid.onclick=e=>{const el=e.target.closest('.cell.on');if(!el)return;const k=el.dataset.rc;
+    if(k===sel){const cw=cellWords[k];if(cw.A!==undefined&&cw.D!==undefined)dir=dir==='A'?'D':'A'}else{sel=k;if(cellWords[k][dir]===undefined)dir=dir==='A'?'D':'A'}
+    paint();inp.focus({preventScroll:true})};
+  document.querySelectorAll('.clues').forEach(c=>c.onclick=e=>{const li=e.target.closest('li');if(li)selWord(+li.dataset.w)});
+  inp.addEventListener('keydown',e=>{
+    if(!sel)return;const k=e.key;
+    if(/^[a-zA-Z]$/.test(k)){e.preventDefault();if(!rev.has(sel))fill[sel]=k.toUpperCase();move(1)}
+    else if(k==='Backspace'){e.preventDefault();if(fill[sel]&&!rev.has(sel))delete fill[sel];else{move(-1);if(!rev.has(sel))delete fill[sel]}}
+    else if(k.startsWith('Arrow')){e.preventDefault();const[r,c]=sel.split(',').map(Number);const d={ArrowUp:[-1,0],ArrowDown:[1,0],ArrowLeft:[0,-1],ArrowRight:[0,1]}[k];const nd=d[0]?'D':'A';
+      if(nd!==dir&&cellWords[sel][nd]!==undefined)dir=nd;else{let rr=r+d[0],cc=c+d[1];while(rr>=0&&cc>=0&&rr<P.rows&&cc<P.cols){if(cellWords[rr+','+cc]){sel=rr+','+cc;if(cellWords[sel][dir]===undefined)dir=nd;break}rr+=d[0];cc+=d[1]}}}
+    else if(k==='Tab'||k==='Enter'){e.preventDefault();const wi=curWord();const list=[...ord('A'),...ord('D')].map(x=>x[1]);selWord(list[(list.indexOf(wi)+(e.shiftKey?-1:1)+list.length)%list.length]);return}
+    else if(k===' '){e.preventDefault();const cw=cellWords[sel];if(cw.A!==undefined&&cw.D!==undefined)dir=dir==='A'?'D':'A'}
+    else return;
+    paint()});
+  inp.addEventListener('input',()=>{const v=inp.value.replace(/[^a-z]/gi,'');inp.value='';if(v&&sel){if(!rev.has(sel))fill[sel]=v.slice(-1).toUpperCase();move(1);paint()}});
+  $('#cw-live').onchange=e=>{live=e.target.checked;store.set('cwlive',live);paint()};
+  document.querySelector('#m-cw .bar').addEventListener('click',e=>{const a=e.target.dataset.a;if(!a)return;
+    if(a==='check')paint(true);
+    if(a==='revw'){const wi=curWord();if(wi!=null)cells(wi).forEach(k=>{if(fill[k]!==sol(k)){fill[k]=sol(k);rev.add(k)}});paint()}
+    if(a==='reva'){grid.querySelectorAll('.cell.on').forEach(el=>{const k=el.dataset.rc;if(fill[k]!==sol(k)){fill[k]=sol(k);rev.add(k)}});paint()}
+    if(a==='clr'){Object.keys(fill).forEach(k=>delete fill[k]);rev.clear();paint()}
+    inp.focus({preventScroll:true})});
+  return {build,focus:()=>{if(P){paint();inp.focus({preventScroll:true})}}};
+})();
+
+/* ---------------- Term guess ---------------- */
+const TG=(()=>{
+  let cur,rows,row,over,hints;const st={won:store.get('tgwon',0),streak:store.get('tgstreak',0)};
+  const KB=['QWERTYUIOP','ASDFGHJKL','⏎ZXCVBNM⌫'];
+  $('#tg-kb').innerHTML=KB.map(r=>'<div class="kr">'+[...r].map(k=>`<button type="button" data-k="${k}" class="${k==='⏎'||k==='⌫'?'wide':''}">${k==='⏎'?'Enter':k}</button>`).join('')+'</div>').join('');
+  function next(){
+    const list=[];const seen=new Set();T().all.forEach(([w,c])=>{if(w.length<=12&&!seen.has(w)){seen.add(w);list.push({w,c})}});
+    let n;do{n=list[Math.floor(Math.random()*list.length)]}while(cur&&list.length>1&&n.w===cur.w);
+    cur=n;rows=Array(6).fill('');row=0;over=false;hints=new Set();
+    const L=cur.w.length;$('#tg-board').style.setProperty('--ts',(L>10?30:L>8?36:44)+'px');
+    $('#tg-len').textContent=L+' letters';$('#tg-clue').classList.remove('on');$('#tg-clue').textContent='Clue: '+cur.c;
+    $('#tg-res').className='result';$('#tg-msg').textContent='';
+    document.querySelectorAll('#tg-kb button').forEach(b=>b.classList.remove('g','y','x'));
+    ['tg-h1','tg-h2','tg-give'].forEach(id=>$('#'+id).disabled=false);
+    draw();
+  }
+  function score(g,w){const res=Array(w.length).fill('x'),cnt={};[...w].forEach((ch,i)=>{if(g[i]===ch)res[i]='g';else cnt[ch]=(cnt[ch]||0)+1});[...g].forEach((ch,i)=>{if(res[i]!=='g'&&cnt[ch]){res[i]='y';cnt[ch]--}});return res}
+  function draw(){const w=cur.w;$('#tg-board').innerHTML=rows.map((g,r)=>{const sc=r<row?score(g,w):null;return '<div class="tg-row">'+[...w].map((_,i)=>{let ch=g[i]||'',cls='tile';if(sc)cls+=' '+sc[i];else if(r===row&&!ch&&hints.has(i)&&!over){ch=w[i];cls+=' hint'}else if(ch)cls+=' f';return `<div class="${cls}">${ch}</div>`}).join('')+'</div>'}).join('')}
+  function key(k){
+    if(over)return;const L=cur.w.length;
+    if(k==='⌫'||k==='BACKSPACE')rows[row]=rows[row].slice(0,-1);
+    else if(k==='⏎'||k==='ENTER'){if(rows[row].length!==L){$('#tg-msg').textContent=`Needs ${L} letters`;return}
+      const g=rows[row],sc=score(g,cur.w),rank={g:3,y:2,x:1};
+      [...g].forEach((ch,i)=>{const b=document.querySelector(`#tg-kb [data-k="${ch}"]`);const now=['g','y','x'].find(c=>b.classList.contains(c));if(!now||rank[sc[i]]>rank[now]){b.classList.remove('g','y','x');b.classList.add(sc[i])}});
+      row++;if(g===cur.w)end(true);else if(row===6)end(false);else $('#tg-msg').textContent=''}
+    else if(/^[A-Z]$/.test(k)&&rows[row].length<L)rows[row]+=k;
+    draw();
+  }
+  function end(win){over=true;if(win){st.won++;st.streak++;$('#tg-msg').textContent=['Brilliant!','Excellent!','Nice work!','Got it!','Solid!','Phew!'][row-1]||'Got it!'}else{st.streak=0}
+    store.set('tgwon',st.won);store.set('tgstreak',st.streak);$('#tg-won').textContent=st.won;$('#tg-streak').textContent=st.streak;
+    const r=$('#tg-res');r.className='result on'+(win?'':' lose');r.innerHTML=`<b>${cur.w}</b>: ${cur.c}`;
+    ['tg-h1','tg-h2','tg-give'].forEach(id=>$('#'+id).disabled=true)}
+  $('#tg-won').textContent=st.won;$('#tg-streak').textContent=st.streak;
+  $('#tg-kb').onclick=e=>{const b=e.target.closest('[data-k]');if(b)key(b.dataset.k)};
+  $('#tg-h1').onclick=()=>$('#tg-clue').classList.add('on');
+  $('#tg-h2').onclick=()=>{const free=[...Array(cur.w.length).keys()].filter(i=>!hints.has(i));if(free.length<=1){$('#tg-msg').textContent='No more letter hints';return}hints.add(free[Math.floor(Math.random()*free.length)]);draw()};
+  $('#tg-give').onclick=()=>{row=Math.min(row,5);end(false);draw()};
+  $('#tg-next').onclick=next;
+  document.addEventListener('keydown',e=>{if(mode!=='tg'||e.target.closest('input,textarea,select')||e.ctrlKey||e.metaKey||e.altKey)return;const k=e.key.toUpperCase();if(k==='ENTER'||k==='BACKSPACE'||/^[A-Z]$/.test(k)){e.preventDefault();key(k)}});
+  return {next};
+})();
+
+refresh();showMode();
+</script>
+</body></html>
